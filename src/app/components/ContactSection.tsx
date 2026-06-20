@@ -6,6 +6,15 @@ import { Textarea } from "./ui/textarea";
 import { Card } from "./ui/card";
 import { siteContent } from "../content";
 
+// Web3Forms access key — get a free one at https://web3forms.com (enter the
+// inbox you want submissions sent to). Safe to keep in client code.
+// Can also be supplied via the VITE_WEB3FORMS_ACCESS_KEY env var.
+const WEB3FORMS_ACCESS_KEY =
+  import.meta.env.VITE_WEB3FORMS_ACCESS_KEY ||
+  "ed7a54c5-8a81-45f1-b4b0-ac267c5381bb";
+
+type SubmitStatus = "idle" | "sending" | "success" | "error";
+
 export function ContactSection() {
   const { title, subtitle, contactInfo, form } = siteContent.contact;
   const [formData, setFormData] = useState({
@@ -14,13 +23,44 @@ export function ContactSection() {
     phone: "",
     message: "",
   });
+  const [status, setStatus] = useState<SubmitStatus>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission (could be connected to an API)
-    console.log("Form submitted:", formData);
-    alert("Thank you for your message! We'll get back to you soon.");
-    setFormData({ name: "", email: "", phone: "", message: "" });
+    setStatus("sending");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          access_key: WEB3FORMS_ACCESS_KEY,
+          subject: `New ToGatherSG enquiry from ${formData.name || "website"}`,
+          from_name: "ToGatherSG Website",
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: formData.message,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setStatus("success");
+        setFormData({ name: "", email: "", phone: "", message: "" });
+      } else {
+        setStatus("error");
+        setErrorMsg(data.message || "Something went wrong. Please try again.");
+      }
+    } catch {
+      setStatus("error");
+      setErrorMsg("Network error. Please check your connection and try again.");
+    }
   };
 
   return (
@@ -156,10 +196,22 @@ export function ContactSection() {
 
               <Button
                 type="submit"
-                className="w-full bg-[#8A2BE2] hover:bg-[#8A2BE2]/90 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
+                disabled={status === "sending"}
+                className="w-full bg-[#8A2BE2] hover:bg-[#8A2BE2]/90 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-70"
               >
-                {form.submitButton}
+                {status === "sending" ? "Sending..." : form.submitButton}
               </Button>
+
+              {status === "success" && (
+                <p className="text-center text-green-600 font-medium" role="status">
+                  Thanks! Your message has been sent — we'll get back to you soon.
+                </p>
+              )}
+              {status === "error" && (
+                <p className="text-center text-red-600 font-medium" role="alert">
+                  {errorMsg}
+                </p>
+              )}
             </form>
           </Card>
         </div>
