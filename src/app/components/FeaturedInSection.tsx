@@ -23,7 +23,7 @@ export function FeaturedInSection() {
             <img
               src={image_ZaoBao_Without_face}
               alt="Press Coverage"
-              className="w-55 h-auto rounded-lg mx-[320px] my-[10px]"
+              className="w-full max-w-xs h-auto rounded-lg mx-auto my-[10px]"
             />
           </div>
         </div>
