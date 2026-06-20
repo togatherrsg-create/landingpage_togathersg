@@ -39,10 +39,10 @@ files. Status of each `src/imports/` asset:
 | File | Used in | Status |
 |------|---------|--------|
 | `image__22_.jpg` | Home hero | ✅ real photo (extracted from the Figma mockup) |
-| `Half_Logo.png` | Header logo | ⚠️ placeholder — replace with the real ToGatherSG logo |
-| `Logo.png` | Footer logo | ⚠️ placeholder — replace with the real ToGatherSG logo |
-| `ZaoBao_Without_face.png` | Featured In | ⚠️ placeholder — replace with the real Lianhe Zaobao article |
-| `ToGatherSG_avail_on_ios__1_.png` | Download Now | ⚠️ placeholder — replace with real App Store / iOS screenshot |
+| `Half_Logo.png` | Header logo | ✅ real ToGatherSG logo |
+| `Logo.png` | Footer logo | ✅ real ToGatherSG logo (transparent PNG) |
+| `ZaoBao_Without_face.jpg` | Featured In | ✅ real Lianhe Zaobao article (optimized to ~330 KB) |
+| `ToGatherSG_avail_on_ios__1_.png` | Download Now | ✅ real App Store / iOS promo |
 | `Countdown_to_ios_launch.jpg` | (imported, unused) | placeholder |
 
 The Host With Us benefit cards use inline [lucide](https://lucide.dev) icons (Compass, Wallet,

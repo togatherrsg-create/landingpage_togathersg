@@ -1,4 +1,4 @@
-import image_ZaoBao_Without_face from '@/imports/ZaoBao_Without_face.png'
+import image_ZaoBao_Without_face from '@/imports/ZaoBao_Without_face.jpg'
 import { siteContent } from "../content";
 
 export function FeaturedInSection() {
