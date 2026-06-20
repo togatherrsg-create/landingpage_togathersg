@@ -96,22 +96,22 @@ export const siteContent = {
     subtitle: "We’re a passionate team building ToGatherSG to help people share what they love, discover meaningful experiences and connect through doing. Meet the team behind ToGatherSG!",
     team: [
       {
-        photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
+        photo: "https://images.unsplash.com/photo-1589525231707-f2de2428f59c?fm=jpg&q=80&fit=crop&crop=faces&w=500&h=500",
         name: "Sabrina",
         role: "Lead & Visionary",
         bio: "I'm inspired by the people I meet and the things I learn along the way. Everyone has a story worth sharing, sometimes all it takes is one shared passion to bring us together.",
       },
       {
-        photo: "https://images.unsplash.com/photo-1625389833948-11501a6d9b25?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
+        photo: "https://images.unsplash.com/photo-1624091844772-554661d10173?fm=jpg&q=80&fit=crop&crop=faces&w=500&h=500",
         name: "Min Hui",
         role: "Marketing & Community Growth",
         bio: "I love trying new things and believe people bond more deeply through shared experiences. Here's to creating more moments of fun and connection!",
       },
       {
-        photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
+        photo: "https://images.unsplash.com/photo-1544168190-79c17527004f?fm=jpg&q=80&fit=crop&crop=faces&w=500&h=500",
         name: "Melvin",
         role: "App Developer",
-        bio: "Priya nurtures relationships with hosts and participants, ensuring every experience is memorable. She's dedicated to fostering an inclusive and welcoming community.",
+        bio: "Melvin builds and maintains the ToGatherSG app, turning the team's ideas into a smooth, reliable experience. He believes good technology should quietly bring people together.",
       },
     ],
   },
