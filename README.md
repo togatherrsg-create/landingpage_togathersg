@@ -31,22 +31,22 @@ src/imports/                   # local brand image assets (see below)
 Most text, links, contact details, team members and remote (Unsplash) images are in
 `src/app/content.ts` — edit that file, no component changes needed.
 
-## ⚠️ Brand images — replace the placeholders
+## Brand images
 
 The Figma Make API only exposes flattened frame renders, not the original uploaded image
-files, so the brand assets below are currently **generated placeholders**. Replace each file
-in `src/imports/` with the real asset, keeping the **same filename**:
+files. Status of each `src/imports/` asset:
 
-| File | Used in | Should be |
-|------|---------|-----------|
-| `Half_Logo.png` | Header logo | ToGatherSG header logo mark |
-| `Logo.png` | Footer logo | ToGatherSG footer logo |
-| `image__22_.jpg` | Home hero | Hero lifestyle photo (square) |
-| `ZaoBao_Without_face.png` | Featured In | Lianhe Zaobao / press coverage image |
-| `vxBcf.jpg` | Host benefit cards | Small icon shown on each host benefit card |
-| `ToGatherSG_avail_on_ios__1_.png` | Download Now | App Store / iOS app screenshot |
-| `a2DUq.jpg` | (imported, unused) | optional |
-| `Countdown_to_ios_launch.jpg` | (imported, unused) | optional |
+| File | Used in | Status |
+|------|---------|--------|
+| `image__22_.jpg` | Home hero | ✅ real photo (extracted from the Figma mockup) |
+| `Half_Logo.png` | Header logo | ⚠️ placeholder — replace with the real ToGatherSG logo |
+| `Logo.png` | Footer logo | ⚠️ placeholder — replace with the real ToGatherSG logo |
+| `ZaoBao_Without_face.png` | Featured In | ⚠️ placeholder — replace with the real Lianhe Zaobao article |
+| `ToGatherSG_avail_on_ios__1_.png` | Download Now | ⚠️ placeholder — replace with real App Store / iOS screenshot |
+| `Countdown_to_ios_launch.jpg` | (imported, unused) | placeholder |
+
+The Host With Us benefit cards use inline [lucide](https://lucide.dev) icons (Compass, Wallet,
+Trending-up, Life-buoy) — no image files needed there.
 
 ## Deploy (Vercel)
 
