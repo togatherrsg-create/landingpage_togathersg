@@ -83,7 +83,7 @@ export const siteContent = {
     ],
     ctaButton: {
       label: "Start Hosting Today",
-      href: "#host-onboarding", // Links to footer link
+      href: "/Host-Onboarding-Guidelines.pdf", // Opens the onboarding guide PDF
       type: "external" as const,
     },
   },
