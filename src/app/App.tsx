@@ -9,7 +9,7 @@ import { Footer } from "./components/Footer";
 
 export default function App() {
   return (
-    <div className="min-h-screen font-['Satoshi',sans-serif]">
+    <div className="min-h-screen overflow-x-hidden font-['Satoshi',sans-serif]">
       <Header />
       <main>
         <HomeSection />
