@@ -13,7 +13,7 @@ export const siteContent = {
     logoText: "ToGatherSG", // Optional text next to logo (can be empty "")
     navigation: [
       { label: "Home", href: "#home" },
-      { label: "Featured In", href: "#featured-in" },
+      { label: "Media", href: "#featured-in" },
       { label: "Host With Us", href: "#host-with-us" },
       { label: "Meet The Team", href: "#meet-the-team" },
       { label: "Contact", href: "#contact" },
@@ -46,7 +46,7 @@ export const siteContent = {
   // SECTION 2: FEATURED IN
   // ==========================================
   featuredIn: {
-    title: "Featured In",
+    title: "Media",
     subtitle: " ",
     articleImage: "https://images.unsplash.com/photo-1624269305548-1527ef905ff6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1200",
   },
@@ -107,12 +107,6 @@ export const siteContent = {
         role: "Marketing & Community Growth",
         bio: "I love trying new things and believe people bond more deeply through shared experiences. Here's to creating more moments of fun and connection!",
       },
-      {
-        photo: "https://images.unsplash.com/photo-1544168190-79c17527004f?fm=jpg&q=80&fit=crop&crop=faces&w=500&h=500",
-        name: "Melvin",
-        role: "App Developer",
-        bio: "Melvin builds and maintains the ToGatherSG app, turning the team's ideas into a smooth, reliable experience. He believes good technology should quietly bring people together.",
-      },
     ],
   },
 
@@ -170,7 +164,7 @@ export const siteContent = {
     ],
     navigation: [
       { label: "Home", href: "#home" },
-      { label: "Featured In", href: "#featured-in" },
+      { label: "Media", href: "#featured-in" },
       { label: "Host With Us", href: "#host-with-us" },
       { label: "Meet The Team", href: "#meet-the-team" },
       { label: "Contact", href: "#contact" },
