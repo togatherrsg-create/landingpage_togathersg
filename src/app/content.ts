@@ -177,7 +177,7 @@ export const siteContent = {
       { label: "Download Now", href: "#download-now" },
     ],
     additionalLinks: [
-      { label: "Host Onboarding Guidelines", href: "https://togathersg.com/host-guidelines", id: "host-onboarding" },
+      { label: "Host Onboarding Guidelines", href: "/Host-Onboarding-Guidelines.pdf", id: "host-onboarding" },
       { label: "Terms and Conditions", href: "https://togathersg.com/terms" },
     ],
   },
