@@ -96,13 +96,13 @@ export const siteContent = {
     subtitle: "We’re a passionate team building ToGatherSG to help people share what they love, discover meaningful experiences and connect through doing. Meet the team behind ToGatherSG!",
     team: [
       {
-        photo: "https://images.unsplash.com/photo-1589525231707-f2de2428f59c?fm=jpg&q=80&fit=crop&crop=faces&w=500&h=500",
+        photo: "/team/sabrina.jpg",
         name: "Sabrina",
         role: "Lead & Visionary",
         bio: "I'm inspired by the people I meet and the things I learn along the way. Everyone has a story worth sharing, sometimes all it takes is one shared passion to bring us together.",
       },
       {
-        photo: "https://images.unsplash.com/photo-1624091844772-554661d10173?fm=jpg&q=80&fit=crop&crop=faces&w=500&h=500",
+        photo: "/team/min-hui.jpg",
         name: "Min Hui",
         role: "Marketing & Community Growth",
         bio: "I love trying new things and believe people bond more deeply through shared experiences. Here's to creating more moments of fun and connection!",
