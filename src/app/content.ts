@@ -167,7 +167,6 @@ export const siteContent = {
     socialMedia: [
       { platform: "Instagram", url: "https://instagram.com/togather_sg" },
       { platform: "Facebook", url: "https://facebook.com/togather_sg" },
-      { platform: "LinkedIn", url: "https://linkedin.com/company/togathersg" },
     ],
     navigation: [
       { label: "Home", href: "#home" },

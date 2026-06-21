@@ -1,5 +1,5 @@
 import image_Logo from '@/imports/Logo.png'
-import { Instagram, Facebook, Linkedin } from "lucide-react";
+import { Instagram, Facebook } from "lucide-react";
 import { siteContent } from "../content";
 
 export function Footer() {
@@ -22,8 +22,6 @@ export function Footer() {
         return <Instagram className="w-5 h-5" />;
       case "facebook":
         return <Facebook className="w-5 h-5" />;
-      case "linkedin":
-        return <Linkedin className="w-5 h-5" />;
       default:
         return null;
     }
