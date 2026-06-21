@@ -30,7 +30,7 @@ export function Footer() {
   return (
     <footer className="bg-gray-900 text-white py-16">
       <div className="container mx-auto px-4">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -106,7 +106,7 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
+        <div className="max-w-6xl mx-auto border-t border-gray-800 pt-8 text-center text-gray-400">
           <p>&copy; {new Date().getFullYear()} ToGatherSG. All rights reserved.</p>
         </div>
       </div>
