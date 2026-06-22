@@ -83,7 +83,7 @@ export const siteContent = {
     ],
     ctaButton: {
       label: "Start Hosting Today",
-      href: "/host-guidelines", // Opens the on-page host guidelines
+      href: "/host-onboarding", // Opens the on-page host onboarding guide
       type: "external" as const,
     },
   },
@@ -171,7 +171,8 @@ export const siteContent = {
       { label: "Download Now", href: "#download-now" },
     ],
     additionalLinks: [
-      { label: "Host Onboarding Guidelines", href: "/host-guidelines", id: "host-onboarding" },
+      { label: "Host Onboarding Guide", href: "/host-onboarding" },
+      { label: "Host Standards & Safety Guidelines", href: "/host-guidelines" },
       { label: "Terms and Conditions", href: "/terms" },
     ],
   },

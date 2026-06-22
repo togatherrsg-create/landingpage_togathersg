@@ -6,6 +6,7 @@ import { MeetTheTeamSection } from "./components/MeetTheTeamSection";
 import { ContactSection } from "./components/ContactSection";
 import { DownloadNowSection } from "./components/DownloadNowSection";
 import { Footer } from "./components/Footer";
+import { HostOnboardingPage } from "./components/HostOnboardingPage";
 import { HostGuidelinesPage } from "./components/HostGuidelinesPage";
 import { TermsPage } from "./components/TermsPage";
 
@@ -29,6 +30,10 @@ function LandingPage() {
 export default function App() {
   const path =
     typeof window !== "undefined" ? window.location.pathname.replace(/\/+$/, "") : "";
+
+  if (path === "/host-onboarding") {
+    return <HostOnboardingPage />;
+  }
 
   if (path === "/host-guidelines") {
     return <HostGuidelinesPage />;
