@@ -7,12 +7,21 @@ export function Footer() {
 
   const handleNavClick = (href: string) => {
     if (href.startsWith("#")) {
+      // On other pages (e.g. the guidelines page), there's no section to
+      // scroll to — go to the landing page and let the browser jump there.
+      if (window.location.pathname.replace(/\/+$/, "") !== "") {
+        window.location.href = "/" + href;
+        return;
+      }
       const element = document.querySelector(href);
       if (element) {
         element.scrollIntoView({ behavior: "smooth" });
       }
-    } else {
+    } else if (/^https?:\/\//.test(href)) {
       window.open(href, "_blank");
+    } else {
+      // Internal route, e.g. /host-guidelines
+      window.location.href = href;
     }
   };
 

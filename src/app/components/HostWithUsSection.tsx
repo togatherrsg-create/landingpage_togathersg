@@ -11,14 +11,17 @@ export function HostWithUsSection() {
   const { title, subtitle, benefits, ctaButton } = siteContent.hostWithUs;
 
   const handleCTAClick = () => {
-    // For footer links, we'll scroll to footer or open external link
-    if (ctaButton.href.startsWith("#")) {
-      const element = document.querySelector(ctaButton.href);
+    const href = ctaButton.href;
+    if (href.startsWith("#")) {
+      const element = document.querySelector(href);
       if (element) {
         element.scrollIntoView({ behavior: "smooth" });
       }
+    } else if (/^https?:\/\//.test(href)) {
+      window.open(href, "_blank");
     } else {
-      window.open(ctaButton.href, "_blank");
+      // Internal route, e.g. /host-guidelines
+      window.location.href = href;
     }
   };
 

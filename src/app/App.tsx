@@ -6,8 +6,9 @@ import { MeetTheTeamSection } from "./components/MeetTheTeamSection";
 import { ContactSection } from "./components/ContactSection";
 import { DownloadNowSection } from "./components/DownloadNowSection";
 import { Footer } from "./components/Footer";
+import { HostGuidelinesPage } from "./components/HostGuidelinesPage";
 
-export default function App() {
+function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-hidden font-['Satoshi',sans-serif]">
       <Header />
@@ -22,4 +23,15 @@ export default function App() {
       <Footer />
     </div>
   );
+}
+
+export default function App() {
+  const path =
+    typeof window !== "undefined" ? window.location.pathname.replace(/\/+$/, "") : "";
+
+  if (path === "/host-guidelines") {
+    return <HostGuidelinesPage />;
+  }
+
+  return <LandingPage />;
 }

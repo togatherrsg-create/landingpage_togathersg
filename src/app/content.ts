@@ -83,7 +83,7 @@ export const siteContent = {
     ],
     ctaButton: {
       label: "Start Hosting Today",
-      href: "/Host-Onboarding-Guidelines.pdf", // Opens the onboarding guide PDF
+      href: "/host-guidelines", // Opens the on-page host guidelines
       type: "external" as const,
     },
   },
@@ -171,7 +171,7 @@ export const siteContent = {
       { label: "Download Now", href: "#download-now" },
     ],
     additionalLinks: [
-      { label: "Host Onboarding Guidelines", href: "/Host-Onboarding-Guidelines.pdf", id: "host-onboarding" },
+      { label: "Host Onboarding Guidelines", href: "/host-guidelines", id: "host-onboarding" },
       { label: "Terms and Conditions", href: "https://togathersg.com/terms" },
     ],
   },
