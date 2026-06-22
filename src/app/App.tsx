@@ -7,6 +7,7 @@ import { ContactSection } from "./components/ContactSection";
 import { DownloadNowSection } from "./components/DownloadNowSection";
 import { Footer } from "./components/Footer";
 import { HostGuidelinesPage } from "./components/HostGuidelinesPage";
+import { TermsPage } from "./components/TermsPage";
 
 function LandingPage() {
   return (
@@ -31,6 +32,10 @@ export default function App() {
 
   if (path === "/host-guidelines") {
     return <HostGuidelinesPage />;
+  }
+
+  if (path === "/terms") {
+    return <TermsPage />;
   }
 
   return <LandingPage />;

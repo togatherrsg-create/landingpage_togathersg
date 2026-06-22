@@ -172,7 +172,7 @@ export const siteContent = {
     ],
     additionalLinks: [
       { label: "Host Onboarding Guidelines", href: "/host-guidelines", id: "host-onboarding" },
-      { label: "Terms and Conditions", href: "https://togathersg.com/terms" },
+      { label: "Terms and Conditions", href: "/terms" },
     ],
   },
 };
