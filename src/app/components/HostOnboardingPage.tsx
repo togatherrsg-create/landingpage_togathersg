@@ -1,4 +1,4 @@
-import { PolicyLayout, h1, h2, p, ul, ulSub } from "./PolicyLayout";
+import { PolicyLayout, RelatedLink, h1, h2, p, ul, ulSub } from "./PolicyLayout";
 
 export function HostOnboardingPage() {
   return (
@@ -171,6 +171,13 @@ export function HostOnboardingPage() {
           <strong>48 hours before the session</strong>.
         </li>
       </ul>
+
+      <RelatedLink
+        href="/host-guidelines"
+        eyebrow="Next, read these"
+        label="Host Standards & Safety Guidelines"
+        description="The standards every host must meet before listing an Experience."
+      />
     </PolicyLayout>
   );
 }

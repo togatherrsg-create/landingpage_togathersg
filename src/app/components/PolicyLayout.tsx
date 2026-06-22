@@ -1,7 +1,34 @@
 import { useEffect, type ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import image_Half_Logo from "@/imports/Half_Logo.png";
 import { Footer } from "./Footer";
+
+// A "related page" card to cross-link between policy/guide pages.
+export function RelatedLink({
+  href,
+  label,
+  description,
+  eyebrow = "Next",
+}: {
+  href: string;
+  label: string;
+  description?: string;
+  eyebrow?: string;
+}) {
+  return (
+    <a
+      href={href}
+      className="mt-12 block rounded-2xl border-2 border-gray-100 hover:border-[#8A2BE2] transition-colors p-6 group"
+    >
+      <p className="text-sm font-medium text-gray-500 mb-1">{eyebrow}</p>
+      <span className="inline-flex items-center gap-2 text-[#8A2BE2] font-semibold text-lg">
+        {label}
+        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+      </span>
+      {description && <p className="text-gray-600 mt-1">{description}</p>}
+    </a>
+  );
+}
 
 // Shared style helpers for policy / guide pages
 export const h1 = "text-4xl lg:text-5xl font-bold text-[#8A2BE2] mb-6";

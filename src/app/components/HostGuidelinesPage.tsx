@@ -1,4 +1,4 @@
-import { PolicyLayout, h1, h2, h3, p, ul } from "./PolicyLayout";
+import { PolicyLayout, RelatedLink, h1, h2, h3, p, ul } from "./PolicyLayout";
 
 export function HostGuidelinesPage() {
   return (
@@ -218,6 +218,13 @@ export function HostGuidelinesPage() {
         ToGatherSG reserves the right to investigate complaints and request documents or
         clarifications where safety, legality, or community trust is at risk.
       </p>
+
+      <RelatedLink
+        href="/host-onboarding"
+        eyebrow="See also"
+        label="Host Onboarding Guide"
+        description="The step-by-step guide to getting started as a host on ToGatherSG."
+      />
     </PolicyLayout>
   );
 }
