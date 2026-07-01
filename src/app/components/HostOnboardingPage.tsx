@@ -9,9 +9,7 @@ export function HostOnboardingPage() {
         everything from applying to become a host to taking your first booking and getting paid.
       </p>
       <p className={p}>
-        As ToGatherSG is still in <strong>Beta</strong>, you may experience some bugs or minor
-        issues while using the app as we continue to improve it. We truly appreciate your patience,
-        understanding and support during this phase. If you run into any issues, please email us at{" "}
+        If you run into any issues, please email us at{" "}
         <a className="text-[#8A2BE2] underline" href="mailto:admin@togathersg.com">
           admin@togathersg.com
         </a>{" "}
@@ -32,21 +30,22 @@ export function HostOnboardingPage() {
         <li><strong>Get paid</strong> — payouts land in your bank after each class runs.</li>
       </ul>
 
-      <h2 className={h2}>Step 1: Download Our iOS App</h2>
+      <h2 className={h2}>Step 1: Download the App</h2>
       <p className={p}>
-        ToGatherSG is currently available as a <strong>mobile app for iOS users only</strong>.
-        Please begin by downloading the <strong>main ToGatherSG app</strong> from the App Store.
+        ToGatherSG is currently available as a <strong>mobile app for iOS users only</strong>. You
+        can onboard as a host in either of two ways:
       </p>
+      <ul className={ul}>
+        <li>Download the <strong>ToGatherSG Host App</strong> and sign up and apply directly there, or</li>
+        <li>Download the main <strong>ToGatherSG app</strong> and apply from your Profile.</li>
+      </ul>
       <p className={p}>
-        Our website is available for learning more about us, but{" "}
-        <strong>hosting and bookings are done through the mobile app, not through a web app</strong>.
+        Either way, hosting and bookings are done through the mobile apps, not through a web app —
+        our website is just for learning more about us.
       </p>
 
-      <h2 className={h2}>Step 2: Create User Account</h2>
-      <p className={p}>
-        To become a host on ToGatherSG, you must first create a <strong>user account</strong> on the
-        main app. Sign up using your:
-      </p>
+      <h2 className={h2}>Step 2: Create Your Account</h2>
+      <p className={p}>Create an account using your:</p>
       <ul className={ul}>
         <li>email address,</li>
         <li>Google account, or</li>
@@ -61,9 +60,9 @@ export function HostOnboardingPage() {
 
       <h2 className={h2}>Step 3: Apply to be a Host</h2>
       <p className={p}>
-        Once your user account has been created, you can apply to become a host through the{" "}
-        <strong>main ToGatherSG app</strong>. Go to your <strong>Profile</strong> and complete the{" "}
-        <strong>host application form</strong>. Prepare the following:
+        Complete the <strong>host application form</strong> — available in both the{" "}
+        <strong>Host App</strong> and the main <strong>ToGatherSG app</strong>. Prepare the
+        following:
       </p>
       <ul className={ul}>
         <li>A clear <strong>profile photo</strong> of yourself, so guests can recognise their host.</li>
@@ -116,9 +115,8 @@ export function HostOnboardingPage() {
 
       <h2 className={h2}>Step 5: Set Up Your Payment Account</h2>
       <p className={p}>
-        ToGatherSG uses Stripe to pay hosts securely. Once your application has been approved, open
-        the app, head to your profile, and tap <strong>Finish setting up your account</strong>.
-        You'll be guided through Stripe to provide:
+        ToGatherSG uses Stripe to pay hosts securely. Once your application has been approved, tap{" "}
+        <strong>Finish setting up your account</strong>. You'll be guided through Stripe to provide:
       </p>
       <ul className={ul}>
         <li>your business or personal details for verification, and</li>
@@ -131,8 +129,8 @@ export function HostOnboardingPage() {
         <li>your account status will then reflect your host access.</li>
       </ul>
       <p className={p}>
-        Once everything is approved, download the <strong>ToGatherSG Host App</strong>, sign in using
-        the same account details as your main app, and begin listing your experiences.
+        If you started in the main app, download the <strong>ToGatherSG Host App</strong> and sign in
+        using the same account details to manage your listings.
       </p>
 
       <h2 className={h2}>Step 6: Create Your First Experience</h2>
