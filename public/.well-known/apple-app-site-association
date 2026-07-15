@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["TEAMID.com.togathersg.togather"],
+        "appIDs": ["5FW36FQ5Y8.com.togathersg.togather"],
         "components": [{ "/": "/experiences/*" }]
       }
     ]
