@@ -1,4 +1,4 @@
-import image_ToGatherSG_avail_on_ios__1_ from '@/imports/ToGatherSG_avail_on_ios__1_.png'
+import image_ToGatherSG_avail_on_ios__1_ from '@/imports/Live_on_app_store.png'
 import image_Countdown_to_ios_launch from '@/imports/Countdown_to_ios_launch.jpg'
 import { Button } from "./ui/button";
 import { siteContent } from "../content";
