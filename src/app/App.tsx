@@ -9,6 +9,7 @@ import { Footer } from "./components/Footer";
 import { HostOnboardingPage } from "./components/HostOnboardingPage";
 import { HostGuidelinesPage } from "./components/HostGuidelinesPage";
 import { TermsPage } from "./components/TermsPage";
+import { CustomerTermsPage } from "./components/CustomerTermsPage";
 
 function LandingPage() {
   return (
@@ -39,7 +40,13 @@ export default function App() {
     return <HostGuidelinesPage />;
   }
 
+  // Public /terms shows the customer (User) T&Cs. Host Terms live at
+  // /host-terms (hosts also read them in-app in the vendor app).
   if (path === "/terms") {
+    return <CustomerTermsPage />;
+  }
+
+  if (path === "/host-terms") {
     return <TermsPage />;
   }
 
