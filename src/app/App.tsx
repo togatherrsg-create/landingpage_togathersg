@@ -10,6 +10,7 @@ import { HostOnboardingPage } from "./components/HostOnboardingPage";
 import { HostGuidelinesPage } from "./components/HostGuidelinesPage";
 import { TermsPage } from "./components/TermsPage";
 import { CustomerTermsPage } from "./components/CustomerTermsPage";
+import { PrivacyPage } from "./components/PrivacyPage";
 
 function LandingPage() {
   return (
@@ -48,6 +49,10 @@ export default function App() {
 
   if (path === "/host-terms") {
     return <TermsPage />;
+  }
+
+  if (path === "/privacy") {
+    return <PrivacyPage />;
   }
 
   return <LandingPage />;

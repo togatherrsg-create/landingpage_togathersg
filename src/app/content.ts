@@ -174,6 +174,7 @@ export const siteContent = {
       { label: "Host Onboarding Guide", href: "/host-onboarding" },
       { label: "Host Standards & Safety Guidelines", href: "/host-guidelines" },
       { label: "Terms and Conditions", href: "/terms" },
+      { label: "Privacy Policy", href: "/privacy" },
     ],
   },
 };
