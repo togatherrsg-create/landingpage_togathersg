@@ -4,7 +4,6 @@ export function PrivacyPage() {
   return (
     <PolicyLayout>
       <h1 className={h1}>Privacy Policy</h1>
-      <p className="text-sm text-gray-500 mb-10">Last updated: 23 May 2026</p>
 
       <h2 className={h2}>Introduction</h2>
       <p className={p}>
