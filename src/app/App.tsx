@@ -11,6 +11,7 @@ import { HostGuidelinesPage } from "./components/HostGuidelinesPage";
 import { TermsPage } from "./components/TermsPage";
 import { CustomerTermsPage } from "./components/CustomerTermsPage";
 import { PrivacyPage } from "./components/PrivacyPage";
+import { DeleteAccountPage } from "./components/DeleteAccountPage";
 
 function LandingPage() {
   return (
@@ -53,6 +54,12 @@ export default function App() {
 
   if (path === "/privacy") {
     return <PrivacyPage />;
+  }
+
+  // Account-deletion instructions — required by Google Play's account-deletion
+  // policy; this URL goes in Play Console → App content → Data safety.
+  if (path === "/delete-account") {
+    return <DeleteAccountPage />;
   }
 
   return <LandingPage />;
