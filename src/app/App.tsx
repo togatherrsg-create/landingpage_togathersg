@@ -12,6 +12,7 @@ import { TermsPage } from "./components/TermsPage";
 import { CustomerTermsPage } from "./components/CustomerTermsPage";
 import { PrivacyPage } from "./components/PrivacyPage";
 import { DeleteAccountPage } from "./components/DeleteAccountPage";
+import { ChildSafetyPage } from "./components/ChildSafetyPage";
 
 function LandingPage() {
   return (
@@ -60,6 +61,12 @@ export default function App() {
   // policy; this URL goes in Play Console → App content → Data safety.
   if (path === "/delete-account") {
     return <DeleteAccountPage />;
+  }
+
+  // Child-safety (CSAE) standards — required by Google Play's Child Safety
+  // Standards policy; the URL goes in Play Console → App content.
+  if (path === "/child-safety") {
+    return <ChildSafetyPage />;
   }
 
   return <LandingPage />;
