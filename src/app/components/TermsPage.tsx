@@ -377,7 +377,7 @@ export function TermsPage() {
             <strong>
               New Hosts are eligible for an introductory Platform Fee of 5% for their first 10
               successful transactions or until the total gross booking amount received through the
-              Platform reaches S$100, whichever occurs first.
+              Platform reaches S$500, whichever occurs first.
             </strong>{" "}
             Once either threshold is reached, the standard Platform Fee of 12.5% shall apply to
             subsequent transactions. The Platform Fee is exclusive of any applicable taxes, which will
