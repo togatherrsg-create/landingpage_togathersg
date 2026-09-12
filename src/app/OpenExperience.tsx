@@ -6,8 +6,8 @@ const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.togath
 /** Offer each visitor their own store; on desktop show both. */
 function storeLinks(): { href: string; label: string }[] {
   const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
-  const apple = { href: APP_STORE_URL, label: 'Download on the App Store' };
-  const play = { href: PLAY_STORE_URL, label: 'Get it on Google Play' };
+  const apple = { href: APP_STORE_URL, label: 'Download from App Store' };
+  const play = { href: PLAY_STORE_URL, label: 'Download from Google Play' };
   if (/android/i.test(ua)) return [play];
   if (/iphone|ipad|ipod/i.test(ua)) return [apple];
   return [apple, play];

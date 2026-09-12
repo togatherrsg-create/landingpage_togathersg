@@ -140,12 +140,12 @@ export const siteContent = {
     description: "Browse workshops, book experiences and connect with amazing hosts—all from your phone.",
     buttons: [
       {
-        label: "Download on App Store",
+        label: "Download from App Store",
         href: "https://apps.apple.com/sg/app/togathersg/id6758666107/", // External URL - edit this
         type: "primary" as const,
       },
       {
-        label: "Get it on Google Play",
+        label: "Download from Google Play",
         href: "https://play.google.com/store/apps/details?id=com.togathersg.customer", // External URL - edit this
         type: "primary" as const,
       },
