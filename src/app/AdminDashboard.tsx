@@ -55,10 +55,19 @@ type Data = {
   categories: Category[];
 };
 
-const RANGES = [
-  { key: '30', label: 'Last 30 days', days: 30 },
-  { key: '90', label: 'Last 90 days', days: 90 },
-  { key: 'all', label: 'All time', days: 0 },
+/** yyyy-mm-dd in local time — never toISOString(), which shifts across midnight. */
+const dayKey = (d: Date) =>
+  `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, '0')}-${`${d.getDate()}`.padStart(2, '0')}`;
+const todayKey = () => dayKey(new Date());
+const daysAgoKey = (n: number) => dayKey(new Date(Date.now() - n * 86400_000));
+
+// Quick presets sit beside the date pickers; picking dates by hand just
+// overrides them, so the two controls never fight each other.
+const PRESETS = [
+  { key: '7', label: 'Last 7 days', from: () => daysAgoKey(7) },
+  { key: '30', label: 'Last 30 days', from: () => daysAgoKey(30) },
+  { key: '90', label: 'Last 90 days', from: () => daysAgoKey(90) },
+  { key: 'all', label: 'All time', from: () => '2020-01-01' },
 ] as const;
 
 const money = (cents: number) =>
@@ -82,7 +91,8 @@ export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [range, setRange] = useState<(typeof RANGES)[number]['key']>('90');
+  const [from, setFrom] = useState(() => daysAgoKey(90));
+  const [to, setTo] = useState(() => todayKey());
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: d }) => {
@@ -145,9 +155,14 @@ export default function AdminDashboard() {
 
   const metrics = useMemo(() => {
     if (!data) return null;
-    const days = RANGES.find((r) => r.key === range)!.days;
-    const since = days ? Date.now() - days * 86400_000 : 0;
-    const inRange = (iso: string) => new Date(iso).getTime() >= since;
+    // Inclusive of both endpoints: "to" runs to the end of that day, so picking
+    // the same date twice shows that one day rather than nothing.
+    const fromMs = new Date(`${from}T00:00:00`).getTime();
+    const toMs = new Date(`${to}T23:59:59.999`).getTime();
+    const inRange = (iso: string) => {
+      const t = new Date(iso).getTime();
+      return t >= fromMs && t <= toMs;
+    };
 
     const bookings = data.bookings.filter((b) => inRange(b.created_at));
     const paid = bookings.filter((b) => b.payment_status === 'paid' || b.payment_status === 'refunded');
@@ -176,8 +191,9 @@ export default function AdminDashboard() {
     const weekly = [...weeks.values()].sort((a, b) => a.week.localeCompare(b.week));
 
     // Customer signups per week over the same window.
+    const newCustomerRows = data.customers.filter((x) => inRange(x.created_at));
     const signupWeeks = new Map<string, { week: string; signups: number }>();
-    for (const c of data.customers.filter((x) => inRange(x.created_at))) {
+    for (const c of newCustomerRows) {
       const k = weekKey(c.created_at);
       const row = signupWeeks.get(k) ?? { week: k, signups: 0 };
       row.signups += 1;
@@ -234,12 +250,13 @@ export default function AdminDashboard() {
       hostsListing,
       liveListings: [...listingsByOwner.values()].reduce((a, b) => a + b, 0),
       upcoming,
+      newCustomers: newCustomerRows.length,
       totalCustomers: data.customers.length,
       bookersCount: bookers.length,
       repeat,
       categoryMix,
     };
-  }, [data, range]);
+  }, [data, from, to]);
 
   if (checking) return <Shell><p className="text-gray-500">Loading…</p></Shell>;
   if (!session) return <Shell><LoginPanel /></Shell>;
@@ -267,18 +284,40 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 text-sm">Signed in as {session.user.email}</p>
         </div>
-        <div className="flex items-center gap-2">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              onClick={() => setRange(r.key)}
-              className={`px-3 py-1.5 rounded-lg text-sm border ${
-                range === r.key ? 'bg-[#8A2BE2] text-white border-[#8A2BE2]' : 'bg-white text-gray-700 border-gray-200'
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {PRESETS.map((p) => {
+            const active = from === p.from() && to === todayKey();
+            return (
+              <button
+                key={p.key}
+                onClick={() => {
+                  setFrom(p.from());
+                  setTo(todayKey());
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm border ${
+                  active ? 'bg-[#8A2BE2] text-white border-[#8A2BE2]' : 'bg-white text-gray-700 border-gray-200'
+                }`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+          <span className="text-sm text-gray-500 ml-1">From</span>
+          <input
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => setFrom(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white"
+          />
+          <span className="text-sm text-gray-500">to</span>
+          <input
+            type="date"
+            value={to}
+            min={from}
+            onChange={(e) => setTo(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white"
+          />
           <button onClick={() => void load()} className="px-3 py-1.5 rounded-lg text-sm border bg-white text-gray-700 border-gray-200">
             Refresh
           </button>
@@ -362,8 +401,9 @@ export default function AdminDashboard() {
 
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-3">Customers</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Stat label="Customers" value={String(metrics.totalCustomers)} />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              <Stat label="New customers" value={String(metrics.newCustomers)} hint="signed up in this range" />
+              <Stat label="Customers (all time)" value={String(metrics.totalCustomers)} />
               <Stat label="Have booked" value={String(metrics.bookersCount)} hint={metrics.totalCustomers ? `${Math.round((metrics.bookersCount / metrics.totalCustomers) * 100)}% of signups` : undefined} />
               <Stat label="Booked more than once" value={String(metrics.repeat)} />
               <Stat label="Never booked" value={String(metrics.totalCustomers - metrics.bookersCount)} />
