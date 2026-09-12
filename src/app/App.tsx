@@ -13,6 +13,7 @@ import { CustomerTermsPage } from "./components/CustomerTermsPage";
 import { PrivacyPage } from "./components/PrivacyPage";
 import { DeleteAccountPage } from "./components/DeleteAccountPage";
 import { ChildSafetyPage } from "./components/ChildSafetyPage";
+import AdminDashboard from "./AdminDashboard";
 
 function LandingPage() {
   return (
@@ -55,6 +56,12 @@ export default function App() {
 
   if (path === "/privacy") {
     return <PrivacyPage />;
+  }
+
+  // Internal metrics dashboard. Gated by Supabase auth + the is_admin flag —
+  // the page itself is public, but it shows nothing without an admin account.
+  if (path === "/admin") {
+    return <AdminDashboard />;
   }
 
   // Account-deletion instructions — required by Google Play's account-deletion
