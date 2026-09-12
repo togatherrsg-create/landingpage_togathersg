@@ -39,6 +39,8 @@ type Booking = {
   created_at: string;
   customer_id: string | null;
   service_id: string | null;
+  schedule_id: string | null;
+  participants_count: number | null;
 };
 type Service = { id: string; owner_id: string | null; status: string | null; is_active: boolean | null; title: string | null; category_id: string | null };
 type Owner = { user_id: string; display_name: string | null; is_approved: boolean | null; onboarding_status: string | null; created_at: string };
@@ -127,7 +129,7 @@ export default function AdminDashboard() {
       // truncate and understate every metric. Switch to ranged paging then.
       const CAP = 1000;
       const [b, s, o, c, sc, cat] = await Promise.all([
-        supabase.from('bookings').select('id,status,payment_status,total_amount,discount_amount,platform_fee_cents,cancellation_reason,created_at,customer_id,service_id').limit(CAP),
+        supabase.from('bookings').select('id,status,payment_status,total_amount,discount_amount,platform_fee_cents,cancellation_reason,created_at,customer_id,service_id,schedule_id,participants_count').limit(CAP),
         supabase.from('services').select('id,owner_id,status,is_active,title,category_id').limit(CAP),
         supabase.from('owners').select('user_id,display_name,is_approved,onboarding_status,created_at').limit(CAP),
         supabase.from('customers').select('user_id,created_at').limit(CAP),
@@ -420,9 +422,205 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </Panel>
           </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Class calendar</h2>
+            <ClassCalendar
+              schedules={data!.schedules}
+              services={data!.services}
+              owners={data!.owners}
+              bookings={data!.bookings}
+            />
+          </section>
         </div>
       )}
     </Shell>
+  );
+}
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/**
+ * Month view of every class across all hosts. Built from data the dashboard has
+ * already loaded, so switching months costs nothing and needs no extra query.
+ * Independent of the date-range filter above — a calendar is about what is
+ * scheduled, not about the reporting window.
+ */
+function ClassCalendar({
+  schedules,
+  services,
+  owners,
+  bookings,
+}: {
+  schedules: Schedule[];
+  services: Service[];
+  owners: Owner[];
+  bookings: Booking[];
+}) {
+  const now = new Date();
+  const [month, setMonth] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
+  const [selected, setSelected] = useState<string | null>(() => todayKey());
+
+  const serviceById = useMemo(() => new Map(services.map((s) => [s.id, s])), [services]);
+  const ownerName = useMemo(
+    () => new Map(owners.map((o) => [o.user_id, o.display_name ?? 'Host'])),
+    [owners],
+  );
+  // Seats taken per class — cancelled bookings release their seats.
+  const seats = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const b of bookings) {
+      if (!b.schedule_id || b.status === 'cancelled') continue;
+      m.set(b.schedule_id, (m.get(b.schedule_id) ?? 0) + (b.participants_count ?? 1));
+    }
+    return m;
+  }, [bookings]);
+
+  const monthClasses = useMemo(
+    () =>
+      schedules
+        .filter((s) => {
+          const d = new Date(s.start_time);
+          return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
+        })
+        .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+    [schedules, month],
+  );
+
+  const counts = useMemo(() => {
+    const m: Record<string, { total: number; cancelled: number }> = {};
+    for (const s of monthClasses) {
+      const k = dayKey(new Date(s.start_time));
+      const row = m[k] ?? { total: 0, cancelled: 0 };
+      row.total += 1;
+      if (s.status === 'cancelled') row.cancelled += 1;
+      m[k] = row;
+    }
+    return m;
+  }, [monthClasses]);
+
+  const dayList = monthClasses.filter((s) => dayKey(new Date(s.start_time)) === selected);
+  const cancelledThisMonth = monthClasses.filter((s) => s.status === 'cancelled').length;
+
+  const year = month.getFullYear();
+  const mo = month.getMonth();
+  const firstDow = new Date(year, mo, 1).getDay();
+  const daysInMonth = new Date(year, mo + 1, 0).getDate();
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, mo, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-3">
+      <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => setMonth(new Date(year, mo - 1, 1))}
+            className="px-2 py-1 text-lg text-[#8A2BE2]"
+            aria-label="Previous month"
+          >
+            ‹
+          </button>
+          <p className="font-semibold text-gray-900">{MONTH_NAMES[mo]} {year}</p>
+          <button
+            onClick={() => setMonth(new Date(year, mo + 1, 1))}
+            className="px-2 py-1 text-lg text-[#8A2BE2]"
+            aria-label="Next month"
+          >
+            ›
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-1">
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
+            <div key={d}>{d}</div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((cell, i) => {
+            if (!cell) return <div key={`b${i}`} />;
+            const key = dayKey(cell);
+            const c = counts[key];
+            const isSelected = key === selected;
+            const isToday = key === todayKey();
+            const allCancelled = !!c && c.total > 0 && c.cancelled === c.total;
+            return (
+              <button
+                key={key}
+                onClick={() => setSelected(key)}
+                className={`rounded-lg py-1.5 text-sm border ${
+                  isSelected
+                    ? 'bg-[#8A2BE2] text-white border-[#8A2BE2]'
+                    : isToday
+                      ? 'border-[#8A2BE2] text-gray-900'
+                      : 'border-transparent text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span className="block leading-tight">{cell.getDate()}</span>
+                <span
+                  className={`block text-[10px] leading-tight ${
+                    !c ? 'invisible' : isSelected ? 'text-white' : allCancelled ? 'text-gray-400' : 'text-[#8A2BE2]'
+                  }`}
+                >
+                  {c ? `${c.total}` : '0'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-xs text-gray-400 mt-3">
+          {monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'} this month
+          {cancelledThisMonth > 0 ? ` · ${cancelledThisMonth} cancelled` : ''}
+        </p>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <p className="text-sm font-semibold text-gray-700 mb-3">
+          {selected
+            ? new Date(`${selected}T00:00:00`).toLocaleDateString('en-SG', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })
+            : 'Pick a day'}
+        </p>
+        {dayList.length === 0 ? (
+          <p className="text-sm text-gray-400">Nothing scheduled on this day.</p>
+        ) : (
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {dayList.map((s) => {
+              const svc = s.service_id ? serviceById.get(s.service_id) : undefined;
+              const host = svc?.owner_id ? ownerName.get(svc.owner_id) ?? 'Host' : 'Host';
+              const cancelled = s.status === 'cancelled';
+              return (
+                <div key={s.id} className={`border rounded-lg p-3 ${cancelled ? 'border-gray-100 bg-gray-50' : 'border-gray-100'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-[#8A2BE2]">
+                      {new Date(s.start_time).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${cancelled ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                      {cancelled ? 'cancelled' : s.status ?? 'scheduled'}
+                    </span>
+                  </div>
+                  <p className={`text-sm mt-1 ${cancelled ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                    {svc?.title ?? 'Experience'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {host} · {seats.get(s.id) ?? 0} booked
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
