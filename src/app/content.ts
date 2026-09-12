@@ -145,9 +145,9 @@ export const siteContent = {
         type: "primary" as const,
       },
       {
-        label: "Android Coming Soon",
-        href: "#",
-        type: "disabled" as const,
+        label: "Get it on Google Play",
+        href: "https://play.google.com/store/apps/details?id=com.togathersg.customer", // External URL - edit this
+        type: "primary" as const,
       },
     ],
   },
