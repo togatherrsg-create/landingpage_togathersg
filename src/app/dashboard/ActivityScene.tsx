@@ -46,16 +46,29 @@ interface SceneProps {
 }
 
 export default function ActivityScene(props: SceneProps) {
+  // Closing the scene deliberately drops its WebGL context (React Three Fiber
+  // calls forceContextLoss on unmount). That is not a GPU failure, and treating
+  // it as one switched the 3D view off for good, so only a loss while the
+  // scene is still mounted reports onLost.
+  const closing = useRef(false);
+  useEffect(
+    () => () => {
+      closing.current = true;
+    },
+    [],
+  );
   return (
     <Canvas
       frameloop={props.active ? 'always' : 'demand'}
       dpr={[1, 1.5]}
+      // No filmic tone mapping: it greys near-whites and dulls the brand colours.
+      flat
       camera={{ position: [0, CAMERA_Y, CAMERA_Z], fov: 38 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
       // A lost GPU context (driver reset, too many tabs) leaves a blank
       // canvas; hand over to the flat view instead.
       onCreated={({ gl }) => {
-        gl.domElement.addEventListener('webglcontextlost', () => props.onLost(), { once: true });
+        gl.domElement.addEventListener('webglcontextlost', () => !closing.current && props.onLost(), { once: true });
       }}
     >
       <hemisphereLight args={['#ffffff', '#d9c9f5', 1.6]} />
