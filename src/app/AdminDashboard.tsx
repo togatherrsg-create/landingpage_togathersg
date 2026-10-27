@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Bar,
   BarChart,
@@ -20,6 +20,8 @@ import { supabase } from '@/lib/supabase';
 import { ActivityHero } from './dashboard/ActivityHero';
 import type { ActivityDay } from './dashboard/activity';
 import { demoData, demoSession } from './dashboard/demoData';
+import { BusinessWorldView } from './dashboard/world/BusinessWorldView';
+import { DISTRICT_ORDER, type DistrictKey, type WorldModel } from './dashboard/world/districts';
 
 /**
  * Admin dashboard at /admin.
@@ -108,12 +110,38 @@ const ACTIVITY_DAYS = 30;
 // is false in production builds, so this is compiled out of the live site.
 const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
 
+type View = 'world' | 'classic';
+const VIEW_KEY = 'togathersg.admin.view';
+
+/** The view this browser used last; the 3D world for a first visit. */
+function savedView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'classic' ? 'classic' : 'world';
+  } catch {
+    return 'world';
+  }
+}
+
 export default function AdminDashboard() {
   const [session, setSession] = useState<Session | null>(DEMO ? demoSession : null);
   const [checking, setChecking] = useState(!DEMO);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(DEMO ? true : null);
   const [data, setData] = useState<Data | null>(DEMO ? demoData() : null);
   const [error, setError] = useState<string | null>(null);
+  const [view, setViewState] = useState<View>(savedView);
+  // False once the 3D world can't run here (no WebGL, an error, a lost GPU
+  // context): the page then stays on the classic view.
+  const [worldOk, setWorldOk] = useState(true);
+  const [district, setDistrict] = useState<DistrictKey | null>(null);
+  const setView = (v: View) => {
+    setViewState(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* private window: the choice just isn't remembered */
+    }
+  };
+  const worldUnavailable = useCallback(() => setWorldOk(false), []);
   const [from, setFrom] = useState(() => daysAgoKey(90));
   const [to, setTo] = useState(() => todayKey());
 
@@ -333,6 +361,22 @@ export default function AdminDashboard() {
         lastSynced,
       },
       activity,
+      world: {
+        downloads: {
+          connected: data.storeStats !== null,
+          appStore: sumDownloads((r) => r.store === 'app_store'),
+          googlePlay: sumDownloads((r) => r.store === 'google_play'),
+        },
+        revenue: { gmvCents: gmv, takeCents: take },
+        bookings: { live: live.length, cancelled: cancelled.length },
+        hosts: {
+          listing: hostsListing,
+          approvedIdle: approvedHosts.length - hostsListing,
+          pending: data.owners.length - approvedHosts.length,
+        },
+        customers: { booked: bookers.length, never: Math.max(0, data.customers.length - bookers.length) },
+        upcoming,
+      } satisfies WorldModel,
     };
   }, [data, from, to]);
 
@@ -354,6 +398,156 @@ export default function AdminDashboard() {
         </div>
       </Shell>
     );
+
+  // Each section is written once and shown either in the classic page or in
+  // the 3D world's side panel for the place that was clicked.
+  const sections: Record<DistrictKey, ReactNode> | null = metrics
+    ? {
+        downloads: (
+            <section className="@container">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">App downloads</h2>
+              {metrics.downloads.connected ? (
+                <>
+                  <div className="grid grid-cols-2 @3xl:grid-cols-4 gap-3">
+                    <Stat label="Downloads" value={metrics.downloads.total.toLocaleString('en-SG')} hint="first-time, both stores" />
+                    <Stat label="App Store" value={metrics.downloads.appStore.toLocaleString('en-SG')} hint="iPhone and iPad" />
+                    <Stat label="Google Play" value={metrics.downloads.googlePlay.toLocaleString('en-SG')} hint="Android" />
+                    <Stat label="Host app" value={metrics.downloads.host.toLocaleString('en-SG')} hint="of the total" />
+                  </div>
+                  <Panel title="Downloads by week">
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart data={metrics.downloads.weekly}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                        <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
+                        <YAxis allowDecimals={false} fontSize={12} />
+                        <Tooltip labelFormatter={(l) => shortDate(String(l))} />
+                        <Legend />
+                        <Bar dataKey="appStore" name="App Store" stackId="d" fill="#8A2BE2" />
+                        <Bar dataKey="googlePlay" name="Google Play" stackId="d" fill="#1D9E75" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Panel>
+                  <p className="text-xs text-gray-400 mt-2">
+                    From Apple and Google's daily reports, which arrive about a day late.
+                    {metrics.downloads.lastSynced
+                      ? ` Last synced ${new Date(metrics.downloads.lastSynced).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' })}.`
+                      : ''}
+                  </p>
+                </>
+              ) : (
+                <div className="bg-white rounded-xl border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+                  Store downloads aren't connected yet. Once the App Store Connect and Google Play keys are added, they
+                  appear here the next morning.
+                </div>
+              )}
+            </section>
+        ),
+        revenue: (
+            <section className="@container">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Revenue</h2>
+              <div className="grid grid-cols-2 @3xl:grid-cols-4 gap-3">
+                <Stat label="Booking value" value={money(metrics.gmv)} hint="paid, not cancelled" />
+                <Stat label="Platform take" value={money(metrics.take)} hint="after launch rates and promos" negative={metrics.take < 0} />
+                <Stat label="Promo discounts" value={money(metrics.discounts)} hint="absorbed by the platform" />
+                <Stat label="Avg booking" value={metrics.liveCount ? money(Math.round(metrics.gmv / metrics.liveCount)) : '—'} hint={`${metrics.liveCount} bookings`} />
+              </div>
+              <Panel title="Booking value and platform take by week">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={metrics.weekly}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                    <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
+                    <YAxis fontSize={12} />
+                    <Tooltip formatter={(v: number) => `S$${v.toFixed(2)}`} labelFormatter={shortDate} />
+                    <Legend />
+                    <Bar dataKey="gmv" name="Booking value" fill="#8A2BE2" />
+                    <Bar dataKey="take" name="Platform take" fill="#F4C300" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Panel>
+            </section>
+        ),
+        bookings: (
+            <section className="@container">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Bookings and cancellations</h2>
+              <div className="grid grid-cols-2 @3xl:grid-cols-4 gap-3">
+                <Stat label="Bookings made" value={String(metrics.bookingCount)} />
+                <Stat label="Cancelled" value={String(metrics.cancelledCount)} hint={metrics.bookingCount ? `${Math.round((metrics.cancelledCount / metrics.bookingCount) * 100)}% of bookings` : undefined} />
+                <Stat label="Auto-cancelled" value={String(metrics.autoCancelled)} hint="minimum guests not reached" />
+                <Stat label="Guest cancellations" value={String(metrics.customerCancelled)} />
+              </div>
+              <Panel title="Bookings made per week">
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={metrics.weekly}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                    <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
+                    <YAxis allowDecimals={false} fontSize={12} />
+                    <Tooltip labelFormatter={shortDate} />
+                    <Line type="monotone" dataKey="bookings" name="Bookings" stroke="#8A2BE2" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Panel>
+            </section>
+        ),
+        hosts: (
+            <section className="@container">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Host supply</h2>
+              <div className="grid grid-cols-2 @3xl:grid-cols-4 gap-3">
+                <Stat label="Hosts" value={String(metrics.totalHosts)} />
+                <Stat label="Approved" value={String(metrics.approvedHosts)} />
+                <Stat label="Actually listing" value={String(metrics.hostsListing)} hint={`${metrics.approvedHosts - metrics.hostsListing} approved but no listing`} />
+                <Stat label="Upcoming classes" value={String(metrics.upcoming)} hint={`${metrics.liveListings} live listings`} />
+              </div>
+              <Panel title="Live listings by category">
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie data={metrics.categoryMix} dataKey="value" nameKey="name" outerRadius={95} label>
+                      {metrics.categoryMix.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Panel>
+            </section>
+        ),
+        customers: (
+            <section className="@container">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Customers</h2>
+              <div className="grid grid-cols-2 @3xl:grid-cols-5 gap-3">
+                <Stat label="New customers" value={String(metrics.newCustomers)} hint="signed up in this range" />
+                <Stat label="Customers (all time)" value={String(metrics.totalCustomers)} />
+                <Stat label="Have booked" value={String(metrics.bookersCount)} hint={metrics.totalCustomers ? `${Math.round((metrics.bookersCount / metrics.totalCustomers) * 100)}% of signups` : undefined} />
+                <Stat label="Booked more than once" value={String(metrics.repeat)} />
+                <Stat label="Never booked" value={String(metrics.totalCustomers - metrics.bookersCount)} />
+              </div>
+              <Panel title="New customers per week">
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={metrics.signups}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                    <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
+                    <YAxis allowDecimals={false} fontSize={12} />
+                    <Tooltip labelFormatter={shortDate} />
+                    <Line type="monotone" dataKey="signups" name="Signups" stroke="#1D9E75" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Panel>
+            </section>
+        ),
+        calendar: (
+            <section className="@container">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Class calendar</h2>
+              <ClassCalendar
+                schedules={data!.schedules}
+                services={data!.services}
+                owners={data!.owners}
+                bookings={data!.bookings}
+              />
+            </section>
+        ),
+      }
+    : null;
 
   return (
     <Shell>
@@ -396,6 +590,20 @@ export default function AdminDashboard() {
             onChange={(e) => setTo(e.target.value)}
             className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white"
           />
+          {worldOk ? (
+            <div className="flex rounded-lg border border-gray-200 bg-white p-0.5 ml-1" role="group" aria-label="View">
+              {(['world', 'classic'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  aria-pressed={view === v}
+                  className={`px-3 py-1 rounded-md text-sm ${view === v ? 'bg-[#8A2BE2] text-white' : 'text-gray-600'}`}
+                >
+                  {v === 'world' ? '3D world' : 'Classic'}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <button onClick={() => void load()} className="px-3 py-1.5 rounded-lg text-sm border bg-white text-gray-700 border-gray-200">
             Refresh
           </button>
@@ -410,147 +618,26 @@ export default function AdminDashboard() {
         <p className="text-gray-500">Loading data…</p>
       ) : (
         <div className="space-y-8">
-          <ActivityHero
-            days={metrics.activity}
-            rangeLabel={`Last ${metrics.activity.length} days to ${shortDate(to)}`}
-          />
-
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">App downloads</h2>
-            {metrics.downloads.connected ? (
-              <>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Stat label="Downloads" value={metrics.downloads.total.toLocaleString('en-SG')} hint="first-time, both stores" />
-                  <Stat label="App Store" value={metrics.downloads.appStore.toLocaleString('en-SG')} hint="iPhone and iPad" />
-                  <Stat label="Google Play" value={metrics.downloads.googlePlay.toLocaleString('en-SG')} hint="Android" />
-                  <Stat label="Host app" value={metrics.downloads.host.toLocaleString('en-SG')} hint="of the total" />
-                </div>
-                <Panel title="Downloads by week">
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={metrics.downloads.weekly}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
-                      <YAxis allowDecimals={false} fontSize={12} />
-                      <Tooltip labelFormatter={(l) => shortDate(String(l))} />
-                      <Legend />
-                      <Bar dataKey="appStore" name="App Store" stackId="d" fill="#8A2BE2" />
-                      <Bar dataKey="googlePlay" name="Google Play" stackId="d" fill="#1D9E75" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Panel>
-                <p className="text-xs text-gray-400 mt-2">
-                  From Apple and Google's daily reports, which arrive about a day late.
-                  {metrics.downloads.lastSynced
-                    ? ` Last synced ${new Date(metrics.downloads.lastSynced).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' })}.`
-                    : ''}
-                </p>
-              </>
-            ) : (
-              <div className="bg-white rounded-xl border border-dashed border-gray-200 p-4 text-sm text-gray-500">
-                Store downloads aren't connected yet. Once the App Store Connect and Google Play keys are added, they
-                appear here the next morning.
-              </div>
-            )}
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Revenue</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Stat label="Booking value" value={money(metrics.gmv)} hint="paid, not cancelled" />
-              <Stat label="Platform take" value={money(metrics.take)} hint="after launch rates and promos" negative={metrics.take < 0} />
-              <Stat label="Promo discounts" value={money(metrics.discounts)} hint="absorbed by the platform" />
-              <Stat label="Avg booking" value={metrics.liveCount ? money(Math.round(metrics.gmv / metrics.liveCount)) : '—'} hint={`${metrics.liveCount} bookings`} />
-            </div>
-            <Panel title="Booking value and platform take by week">
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={metrics.weekly}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip formatter={(v: number) => `S$${v.toFixed(2)}`} labelFormatter={shortDate} />
-                  <Legend />
-                  <Bar dataKey="gmv" name="Booking value" fill="#8A2BE2" />
-                  <Bar dataKey="take" name="Platform take" fill="#F4C300" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Panel>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Bookings and cancellations</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Stat label="Bookings made" value={String(metrics.bookingCount)} />
-              <Stat label="Cancelled" value={String(metrics.cancelledCount)} hint={metrics.bookingCount ? `${Math.round((metrics.cancelledCount / metrics.bookingCount) * 100)}% of bookings` : undefined} />
-              <Stat label="Auto-cancelled" value={String(metrics.autoCancelled)} hint="minimum guests not reached" />
-              <Stat label="Guest cancellations" value={String(metrics.customerCancelled)} />
-            </div>
-            <Panel title="Bookings made per week">
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={metrics.weekly}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
-                  <YAxis allowDecimals={false} fontSize={12} />
-                  <Tooltip labelFormatter={shortDate} />
-                  <Line type="monotone" dataKey="bookings" name="Bookings" stroke="#8A2BE2" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Panel>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Host supply</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Stat label="Hosts" value={String(metrics.totalHosts)} />
-              <Stat label="Approved" value={String(metrics.approvedHosts)} />
-              <Stat label="Actually listing" value={String(metrics.hostsListing)} hint={`${metrics.approvedHosts - metrics.hostsListing} approved but no listing`} />
-              <Stat label="Upcoming classes" value={String(metrics.upcoming)} hint={`${metrics.liveListings} live listings`} />
-            </div>
-            <Panel title="Live listings by category">
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={metrics.categoryMix} dataKey="value" nameKey="name" outerRadius={95} label>
-                    {metrics.categoryMix.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </Panel>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Customers</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-              <Stat label="New customers" value={String(metrics.newCustomers)} hint="signed up in this range" />
-              <Stat label="Customers (all time)" value={String(metrics.totalCustomers)} />
-              <Stat label="Have booked" value={String(metrics.bookersCount)} hint={metrics.totalCustomers ? `${Math.round((metrics.bookersCount / metrics.totalCustomers) * 100)}% of signups` : undefined} />
-              <Stat label="Booked more than once" value={String(metrics.repeat)} />
-              <Stat label="Never booked" value={String(metrics.totalCustomers - metrics.bookersCount)} />
-            </div>
-            <Panel title="New customers per week">
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={metrics.signups}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
-                  <YAxis allowDecimals={false} fontSize={12} />
-                  <Tooltip labelFormatter={shortDate} />
-                  <Line type="monotone" dataKey="signups" name="Signups" stroke="#1D9E75" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Panel>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Class calendar</h2>
-            <ClassCalendar
-              schedules={data!.schedules}
-              services={data!.services}
-              owners={data!.owners}
-              bookings={data!.bookings}
+          {view === 'world' && worldOk ? (
+            <BusinessWorldView
+              world={metrics.world}
+              selected={district}
+              onSelect={setDistrict}
+              onUnavailable={worldUnavailable}
+            >
+              {district ? sections![district] : null}
+            </BusinessWorldView>
+          ) : (
+            <>
+            <ActivityHero
+              days={metrics.activity}
+              rangeLabel={`Last ${metrics.activity.length} days to ${shortDate(to)}`}
             />
-          </section>
+              {DISTRICT_ORDER.map((k) => (
+                <Fragment key={k}>{sections![k]}</Fragment>
+              ))}
+            </>
+          )}
         </div>
       )}
     </Shell>
