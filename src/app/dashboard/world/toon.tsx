@@ -103,19 +103,18 @@ export function Toon({
   );
 }
 
-/** Warm wooden floorboards, drawn once on a small canvas. */
-export const floorboards = (() => {
+/** Floorboards in the given tones, drawn once on a small canvas. */
+function planks(tones: string[]): THREE.CanvasTexture | null {
   if (typeof document === 'undefined') return null;
   const c = document.createElement('canvas');
   c.width = 256;
   c.height = 256;
   const g = c.getContext('2d')!;
-  const tones = ['#dcb27d', '#d4a671', '#e0b986', '#cf9f69'];
   const plank = 32;
   for (let i = 0; i < 256 / plank; i++) {
     g.fillStyle = tones[i % tones.length];
     g.fillRect(0, i * plank, 256, plank);
-    g.fillStyle = 'rgba(75,52,37,0.55)';
+    g.fillStyle = 'rgba(75,52,37,0.35)';
     g.fillRect(0, i * plank, 256, 2);
     // Staggered butt joints, as real boards have.
     const joint = ((i * 97) % 200) + 28;
@@ -127,7 +126,31 @@ export const floorboards = (() => {
   t.repeat.set(3, 3);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
-})();
+}
+
+/** Warm wooden floorboards. */
+export const floorboards = planks(['#dcb27d', '#d4a671', '#e0b986', '#cf9f69']);
+
+/** Soft pink floorboards, like a cosy game-room floor. */
+export const pinkFloorboards = planks(['#eeb4b4', '#e8a9ab', '#f2bfbd', '#e5a2a6']);
+
+/** Vertical wallpaper stripes, one pair per texture repeat. */
+export function wallStripes(a: string, b: string): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 4;
+  const g = c.getContext('2d')!;
+  g.fillStyle = a;
+  g.fillRect(0, 0, 32, 4);
+  g.fillStyle = b;
+  g.fillRect(32, 0, 32, 4);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.magFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 // ── The banner's chibi crew ───────────────────────────────────────────────
 

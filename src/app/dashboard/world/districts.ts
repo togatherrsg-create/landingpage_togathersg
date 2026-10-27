@@ -1,5 +1,5 @@
 /**
- * The places in the 3D business world, one per dashboard section. Shared by
+ * The corners of the 3D business house, one per dashboard section. Shared by
  * the scene (what to build where) and the page (labels, buttons, side panel),
  * so a place can't exist in one and not the other.
  */
@@ -43,37 +43,37 @@ const HALF = STEP / 2;
 
 export const DISTRICTS: Record<DistrictKey, District> = {
   bookings: {
-    label: 'Booking Plaza',
+    label: 'Booking Corner',
     color: '#F2B91C',
     at: { wide: [0, HALF], tall: [HALF, 0] },
     headline: (w) => `${n(w.bookings.live)} bookings`,
   },
   downloads: {
-    label: 'Download Port',
+    label: 'Download Corner',
     color: '#7E4FC0',
     at: { wide: [0, -HALF], tall: [-HALF, -STEP] },
     headline: (w) => (w.downloads.connected ? `${n(w.downloads.appStore + w.downloads.googlePlay)} downloads` : 'not connected yet'),
   },
   revenue: {
-    label: 'Revenue Bank',
+    label: 'Revenue Corner',
     color: '#C98F2E',
     at: { wide: [STEP, -HALF], tall: [HALF, -STEP] },
     headline: (w) => money(w.revenue.gmvCents),
   },
   hosts: {
-    label: 'Host Village',
+    label: 'Host Corner',
     color: '#C96F45',
     at: { wide: [STEP, HALF], tall: [HALF, STEP] },
     headline: (w) => `${n(w.hosts.listing)} hosts listing`,
   },
   customers: {
-    label: 'Customer Park',
+    label: 'Customer Corner',
     color: '#6F8F4E',
     at: { wide: [-STEP, HALF], tall: [-HALF, STEP] },
     headline: (w) => `${n(w.customers.booked + w.customers.never)} customers`,
   },
   calendar: {
-    label: 'Clock Tower',
+    label: 'Calendar Corner',
     color: '#4A6286',
     at: { wide: [-STEP, -HALF], tall: [-HALF, 0] },
     headline: (w) => `${n(w.upcoming)} upcoming classes`,

@@ -38,7 +38,7 @@ const pill = {
 const pillOn = { ...pill, background: 'linear-gradient(180deg, #ffd85a 0%, #f2b91c 100%)', color: '#5b2f99' } as const;
 
 /**
- * The dashboard as a clickable 3D town (see WorldScene), with:
+ * The dashboard as a clickable 3D house (see WorldScene), with:
  *   - a floating label over each place — also a button, so the world works
  *     with a tap on a phone and with the keyboard;
  *   - a row of the same places under the world;
@@ -110,12 +110,12 @@ export function BusinessWorldView({
       <div
         ref={box}
         className="relative overflow-hidden rounded-2xl border-2 h-[420px] sm:h-[min(72vh,620px)]"
-        // The floor's wood tone, so there's no flash of another colour while
-        // the town loads (the floor itself then fills the whole box).
-        style={{ background: '#dcb27d', borderColor: '#c99a63' }}
+        // The wall's yellow, so there's no flash of another colour while
+        // the house loads (the room itself then fills the whole box).
+        style={{ background: '#f6d36f', borderColor: '#d9a94a' }}
       >
         <SceneBoundary onError={onUnavailable}>
-          <Suspense fallback={<p className="absolute inset-0 grid place-items-center text-sm text-[#6b4a33]">Building the town…</p>}>
+          <Suspense fallback={<p className="absolute inset-0 grid place-items-center text-sm text-[#6b4a33]">Building the house…</p>}>
             <WorldScene
               world={world}
               selected={selected}
@@ -161,7 +161,7 @@ export function BusinessWorldView({
         <div className="absolute top-3 left-3 pointer-events-none">
           {selected ? (
             <button onClick={() => onSelect(null)} className="pointer-events-auto rounded-full px-3.5 py-1.5 text-sm hover:scale-105 transition-transform" style={pill}>
-              ← Whole town
+              ← Whole house
             </button>
           ) : (
             <div>
@@ -178,11 +178,11 @@ export function BusinessWorldView({
                   transformOrigin: 'left bottom',
                 }}
               >
-                ToGatherSG Town!
+                ToGatherSG House!
               </p>
               <p className="mt-2 inline-block rounded-full bg-[#fbf1df]/85 px-3 py-1 text-xs text-[#6b4a33] border border-[#e2c9a6]">
-                <span className="sm:hidden">Tap a place to open its numbers</span>
-                <span className="hidden sm:inline">Click a place to open its numbers</span>
+                <span className="sm:hidden">Tap a corner to open its numbers</span>
+                <span className="hidden sm:inline">Click a corner to open its numbers</span>
               </p>
             </div>
           )}
@@ -190,7 +190,7 @@ export function BusinessWorldView({
       </div>
 
       {/* The same places as plain buttons: keyboard, screen readers, small screens. */}
-      <div className="flex flex-wrap gap-2 mt-3" role="toolbar" aria-label="Places">
+      <div className="flex flex-wrap gap-2 mt-3" role="toolbar" aria-label="Corners">
         {DISTRICT_ORDER.map((key) => {
           const d = DISTRICTS[key];
           const isSel = selected === key;

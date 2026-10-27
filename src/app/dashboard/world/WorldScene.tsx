@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject, typ
 import * as THREE from 'three';
 
 import { DISTRICT_ORDER, DISTRICTS, type DistrictKey, type Layout, type WorldModel } from './districts';
-import { Chibi, floorboards, hullScale, inkMaterial, PALETTE, sizeOf, toon, Toon, type Hat } from './toon';
+import { Chibi, hullScale, inkMaterial, PALETTE, pinkFloorboards, sizeOf, toon, Toon, wallStripes, type Hat } from './toon';
 
 /**
  * ToGatherSG as a wooden workshop floor, drawn like the home banner: warm
@@ -93,7 +93,7 @@ export default function WorldScene(props: SceneProps) {
       {/* Warm, soft light like the banner's afternoon room. */}
       <hemisphereLight args={['#fff4e0', '#c9a27a', 1.7]} />
       <directionalLight position={[-5, 10, 8]} intensity={1.6} color="#fff1dc" />
-      <Platform />
+      <RoomForLayout />
       {DISTRICT_ORDER.map((key, i) => (
         <Place key={key} id={key} selected={props.selected} onSelect={props.onSelect}>
           <Contents id={key} world={props.world} />
@@ -135,6 +135,10 @@ function seeded(seed: number) {
 }
 
 /** Ask for a frame when the numbers change, so the on-demand loop redraws. */
+function RoomForLayout() {
+  return <Room layout={useLayout()} />;
+}
+
 /** Two rows of three on a landscape view, three rows of two on a portrait one. */
 function useLayout(): Layout {
   return useThree((s) => (s.size.width / Math.max(1, s.size.height) < 1.2 ? 'tall' : 'wide'));
@@ -155,24 +159,189 @@ function Redraw({ deps }: { deps: unknown }) {
 const STATION_SCALE = 1.25;
 
 /**
- * The floor runs far past every edge of the view — from the overview and from
- * every station close-up — so no background ever shows round it.
+ * The floor and walls run far past every edge of the view — from the overview
+ * and from every corner close-up — so no background ever shows round them.
  */
 const FLOOR = 90;
+const WALL_H = 16;
+/** Radius of a corner's rug, as drawn. */
+const RUG = 1.95 * STATION_SCALE;
 
-/** Floorboards at the same plank size the 17.5-wide platform had (3 repeats). */
+/** Pink floorboards at the plank size the old 17.5-wide platform had. */
 const boards = (() => {
-  if (!floorboards) return undefined;
-  const t = floorboards.clone();
+  if (!pinkFloorboards) return undefined;
+  const t = pinkFloorboards.clone();
   t.repeat.set((3 * FLOOR) / 17.5, (3 * FLOOR) / 17.5);
   t.needsUpdate = true;
   return t;
 })();
 
-const FLOOR_GEO = new THREE.PlaneGeometry(FLOOR, FLOOR).rotateX(-Math.PI / 2);
+const ROOM_GEO = {
+  floor: new THREE.PlaneGeometry(FLOOR, FLOOR).rotateX(-Math.PI / 2),
+  pillar: new THREE.BoxGeometry(0.7, WALL_H, 1.6),
+  windowFrame: new THREE.BoxGeometry(2.5, 2.5, 0.16),
+  windowPane: new THREE.PlaneGeometry(2.05, 2.05),
+  mullionV: new THREE.BoxGeometry(0.12, 2.1, 0.06),
+  mullionH: new THREE.BoxGeometry(2.1, 0.12, 0.06),
+  shelf: new THREE.BoxGeometry(2.6, 0.14, 0.55),
+  bracket: new THREE.BoxGeometry(0.1, 0.4, 0.45),
+  jar: new THREE.CylinderGeometry(0.2, 0.2, 0.42, 14),
+  frame: new THREE.BoxGeometry(2, 1.6, 0.14),
+  canvas: new THREE.PlaneGeometry(1.6, 1.2),
+  sun: new THREE.CircleGeometry(0.32, 24),
+  hill: new THREE.CircleGeometry(0.9, 24, 0, Math.PI),
+  cord: new THREE.CylinderGeometry(0.025, 0.025, 1, 6),
+  shade: new THREE.SphereGeometry(0.55, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+  bulb: new THREE.SphereGeometry(0.2, 12, 10),
+};
 
-function Platform() {
-  return <Toon geometry={FLOOR_GEO} color="#ffffff" map={boards} line={0} />;
+/** The back row of corners on this layout, left to right. */
+function backRow(layout: Layout): { xs: number[]; z: number } {
+  const spots = DISTRICT_ORDER.map((k) => DISTRICTS[k].at[layout]);
+  const z = Math.min(...spots.map(([, sz]) => sz));
+  return { xs: spots.filter(([, sz]) => sz === z).map(([x]) => x).sort((a, b) => a - b), z };
+}
+
+/** Where the back wall stands: just behind the back row's rugs. */
+const wallZ = (layout: Layout) => backRow(layout).z - RUG - 0.8;
+
+/** One wallpaper per back-row corner: warm yellow, mint stripes, yellow. */
+const PAPERS: { color: string; stripes?: [string, string] }[] = [
+  { color: '#f6d36f' },
+  { color: '#ffffff', stripes: ['#a9d8c4', '#f4f1e4'] },
+  { color: '#f6d36f' },
+];
+
+/**
+ * A cosy cut-away room, like a life-sim game's house: pink floorboards, a back
+ * wall papered differently behind each corner, cream pillars between them, a
+ * wainscot rail, and a few homely touches — a window, a shelf of jars, a
+ * picture, pendant lamps and potted plants.
+ */
+function Room({ layout }: { layout: Layout }) {
+  const { xs } = backRow(layout);
+  const z = wallZ(layout);
+  const breaks = xs.slice(1).map((x, i) => (x + xs[i]) / 2);
+  const edges = [-FLOOR / 2, ...breaks, FLOOR / 2];
+  return (
+    <group>
+      <Toon geometry={ROOM_GEO.floor} color="#ffffff" map={boards} line={0} />
+      {edges.slice(1).map((right, i) => (
+        <WallPanel key={`${layout}${i}`} left={edges[i]} right={right} z={z} paper={PAPERS[i % PAPERS.length]} />
+      ))}
+      {breaks.map((x) => (
+        <group key={x}>
+          <Toon geometry={ROOM_GEO.pillar} color={PALETTE.cream} position={[x, WALL_H / 2, z + 0.8]} />
+          <Plant x={x} z={z + 2.1} />
+          <Lamp x={x} z={z + 2.6} />
+        </group>
+      ))}
+      {xs.map((x, i) => {
+        const Decor = [WallWindow, WallShelf, WallPicture][i % 3];
+        return <Decor key={x} x={x} z={z} />;
+      })}
+    </group>
+  );
+}
+
+function WallPanel({ left, right, z, paper }: { left: number; right: number; z: number; paper: (typeof PAPERS)[number] }) {
+  const w = right - left;
+  const x = (left + right) / 2;
+  const geo = useMemo(
+    () => ({
+      wall: new THREE.PlaneGeometry(w, WALL_H),
+      wainscot: new THREE.BoxGeometry(w, 1.3, 0.12),
+      rail: new THREE.BoxGeometry(w, 0.12, 0.2),
+      skirting: new THREE.BoxGeometry(w, 0.28, 0.2),
+    }),
+    [w],
+  );
+  const map = useMemo(() => {
+    if (!paper.stripes) return undefined;
+    const t = wallStripes(...paper.stripes);
+    if (!t) return undefined;
+    t.repeat.set(w / 0.9, 1);
+    return t;
+  }, [paper, w]);
+  return (
+    <group position={[x, 0, z]}>
+      <Toon geometry={geo.wall} color={paper.color} map={map} line={0} position-y={WALL_H / 2} />
+      <Toon geometry={geo.wainscot} color={PALETTE.cream} line={0} position={[0, 0.65, 0.06]} />
+      <Toon geometry={geo.rail} color={PALETTE.woodMid} line={0} position={[0, 1.3, 0.1]} />
+      <Toon geometry={geo.skirting} color={PALETTE.woodMid} line={0} position={[0, 0.14, 0.1]} />
+    </group>
+  );
+}
+
+function WallWindow({ x, z }: { x: number; z: number }) {
+  return (
+    <group position={[x, 4.7, z + 0.08]}>
+      <Toon geometry={ROOM_GEO.windowFrame} color={PALETTE.white} />
+      <mesh geometry={ROOM_GEO.windowPane} position-z={0.09}>
+        <meshBasicMaterial color="#bfe3f2" />
+      </mesh>
+      <Toon geometry={ROOM_GEO.mullionV} color={PALETTE.white} line={0} position-z={0.11} />
+      <Toon geometry={ROOM_GEO.mullionH} color={PALETTE.white} line={0} position-z={0.11} />
+    </group>
+  );
+}
+
+function WallShelf({ x, z }: { x: number; z: number }) {
+  return (
+    <group position={[x + 1.6, 5.2, z + 0.3]}>
+      <Toon geometry={ROOM_GEO.shelf} color={PALETTE.woodMid} />
+      <Toon geometry={ROOM_GEO.bracket} color={PALETTE.woodDark} position={[-1, -0.27, -0.03]} />
+      <Toon geometry={ROOM_GEO.bracket} color={PALETTE.woodDark} position={[1, -0.27, -0.03]} />
+      <Toon geometry={ROOM_GEO.jar} color={PALETTE.coral} position={[-0.8, 0.28, 0]} />
+      <Toon geometry={ROOM_GEO.jar} color={PALETTE.yellow} position={[-0.25, 0.28, 0]} scale={[0.8, 0.8, 0.8]} />
+      <group position={[0.55, 0.07, 0]} scale={0.8}>
+        <Toon geometry={GEO.pot} color={PALETTE.terracotta} position-y={0.2} />
+        <Toon geometry={GEO.vase} color={PALETTE.sage} position-y={0.55} scale={[1.2, 1.3, 1.2]} />
+      </group>
+    </group>
+  );
+}
+
+function WallPicture({ x, z }: { x: number; z: number }) {
+  return (
+    <group position={[x - 1.4, 4.9, z + 0.08]}>
+      <Toon geometry={ROOM_GEO.frame} color={PALETTE.purple} />
+      <mesh geometry={ROOM_GEO.canvas} position-z={0.08}>
+        <meshBasicMaterial color={PALETTE.cream} />
+      </mesh>
+      <mesh geometry={ROOM_GEO.sun} position={[0.38, 0.22, 0.09]}>
+        <meshBasicMaterial color={PALETTE.yellow} />
+      </mesh>
+      <mesh geometry={ROOM_GEO.hill} position={[-0.2, -0.6, 0.09]}>
+        <meshBasicMaterial color={PALETTE.sage} />
+      </mesh>
+    </group>
+  );
+}
+
+function Plant({ x, z }: { x: number; z: number }) {
+  return (
+    <group position={[x, 0, z]} scale={1.4}>
+      <Toon geometry={GEO.pot} color={PALETTE.terracotta} position-y={0.2} />
+      <Toon geometry={GEO.vase} color={PALETTE.sage} position-y={0.6} scale={[1.4, 1.6, 1.4]} />
+    </group>
+  );
+}
+
+/** A pendant lamp, its cord running up out of view. */
+function Lamp({ x, z }: { x: number; z: number }) {
+  const bottom = 5.9;
+  return (
+    <group position={[x, 0, z]}>
+      <mesh geometry={ROOM_GEO.cord} position-y={(WALL_H + bottom) / 2} scale={[1, WALL_H - bottom, 1]}>
+        <meshBasicMaterial color={PALETTE.ink} />
+      </mesh>
+      <Toon geometry={ROOM_GEO.shade} color="#7fb8a4" position-y={bottom} />
+      <mesh geometry={ROOM_GEO.bulb} position-y={bottom - 0.05}>
+        <meshBasicMaterial color="#fff3c4" />
+      </mesh>
+    </group>
+  );
 }
 
 // ── A clickable station ───────────────────────────────────────────────────
@@ -617,8 +786,10 @@ function CameraRig({ selected, still, panelOnRight }: { selected: DistrictKey | 
       // is deeper than it is wide.
       // A narrower landscape view (a tablet) looks down more steeply too, so
       // the two rows grow taller and fill the height the width leaves spare.
-      const elev = THREE.MathUtils.degToRad(portrait ? 55 : THREE.MathUtils.clamp(42 + (1.8 - aspect) * 28, 42, 58));
-      const rug = 1.95 * STATION_SCALE;
+      // Low enough to see into the room — its back wall, window and lamps —
+      // like a life-sim game's house view.
+      const elev = THREE.MathUtils.degToRad(portrait ? 36 : THREE.MathUtils.clamp(30 + (1.8 - aspect) * 26, 30, 46));
+      const rug = RUG;
       // Rug edges and crew (who stand a little off their rugs) must fit the
       // frame; labels must also clear the title in the top-left corner.
       const marks: THREE.Vector3[] = [];
@@ -645,10 +816,14 @@ function CameraRig({ selected, still, panelOnRight }: { selected: DistrictKey | 
         v.copy(m).project(probe);
         return Math.abs(v.x) <= 0.97 && v.y >= -0.95 && v.y <= top;
       };
+      // The title sits top-left: labels under it must stay below it, the
+      // others may go nearly to the top edge.
+      const labelInFrame = (m: THREE.Vector3) => inFrame(m, 0.9) && (v.x > -0.3 || v.y <= 0.68);
       // The closest distance at which some aim point (slid along the depth)
       // fits everything — sliding the aim instead of backing off keeps the
-      // grid big. When several aims fit (spare height on a wide-but-short
-      // view), take the one that leaves equal floor above and below.
+      // grid big. When several aims fit (spare height on a narrower view),
+      // take the one that sets the corners lowest, so the spare height shows
+      // more of the room's wall rather than empty floor.
       let d = 6;
       let aimZ = 0;
       for (; d < 60; d += 0.2) {
@@ -657,17 +832,12 @@ function CameraRig({ selected, still, panelOnRight }: { selected: DistrictKey | 
           probe.position.set(0, 0.9 + d * Math.sin(elev), z + d * Math.cos(elev));
           probe.lookAt(0, 0.9, z);
           probe.updateMatrixWorld();
-          if (!marks.every((m) => inFrame(m, 0.95)) || !labelMarks.every((m) => inFrame(m, 0.72))) continue;
-          let top = -Infinity;
+          if (!marks.every((m) => inFrame(m, 0.95)) || !labelMarks.every(labelInFrame)) continue;
           let bottom = Infinity;
-          for (const m of [...marks, ...labelMarks]) {
-            v.copy(m).project(probe);
-            top = Math.max(top, v.y);
-            bottom = Math.min(bottom, v.y);
-          }
-          const imbalance = Math.abs(0.72 - top - (bottom + 0.95));
-          if (imbalance < best) {
-            best = imbalance;
+          for (const m of marks) bottom = Math.min(bottom, v.copy(m).project(probe).y);
+          const slack = bottom + 0.95;
+          if (slack < best) {
+            best = slack;
             aimZ = z;
           }
         }
