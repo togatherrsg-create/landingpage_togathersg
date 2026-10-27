@@ -6,10 +6,11 @@ import { DISTRICT_ORDER, DISTRICTS, type DistrictKey, type WorldModel } from './
 import { Chibi, floorboards, hullScale, inkMaterial, PALETTE, sizeOf, toon, Toon, type Hat } from './toon';
 
 /**
- * ToGatherSG as a cutaway workshop, drawn like the home banner: warm wooden
- * floorboards, peach walls with shelves of pottery, a picture and a hanging
- * lamp, flat cel shading with dark-brown ink outlines, and the banner's chibi
- * crew — one at each station, hopping while the scene is on screen.
+ * ToGatherSG as a floating wooden diorama, drawn like the home banner: warm
+ * floorboards on a thick platform over parchment, flat cel shading with
+ * dark-brown ink outlines, and the banner's chibi crew — one at each station,
+ * hopping while the scene is on screen. No walls, so the stations fill the
+ * frame.
  *
  * Every station is a dashboard section, built from that section's numbers for
  * the selected range:
@@ -37,14 +38,14 @@ import { Chibi, floorboards, hullScale, inkMaterial, PALETTE, sizeOf, toon, Toon
  * only on demand — camera moves still finish because the rig keeps asking.
  */
 
-const CAPS = { tickets: 160, houses: 36, people: 90, lights: 40, coins: 40 };
+const CAPS = { tickets: 160, houses: 12, people: 90, lights: 40, coins: 40 };
 
 /** Which banner character works at which station. */
 const CREW: Record<DistrictKey, { hat: Hat; at: [number, number, number] }> = {
   bookings: { hat: 'apron', at: [0, 0, 0] },
   downloads: { hat: 'headphones', at: [1.35, 0, 0.95] },
   revenue: { hat: 'straw', at: [-1.1, 0, 0.9] },
-  hosts: { hat: 'chef', at: [1.3, 0, 1.15] },
+  hosts: { hat: 'chef', at: [1.65, 0, 1.25] },
   customers: { hat: 'beret', at: [0, 0, 0] },
   calendar: { hat: 'none', at: [1.05, 0, 0.95] },
 };
@@ -91,7 +92,7 @@ export default function WorldScene(props: SceneProps) {
       {/* Warm, soft light like the banner's afternoon room. */}
       <hemisphereLight args={['#fff4e0', '#c9a27a', 1.7]} />
       <directionalLight position={[-5, 10, 8]} intensity={1.6} color="#fff1dc" />
-      <Room />
+      <Platform />
       {DISTRICT_ORDER.map((key, i) => (
         <Place key={key} id={key} selected={props.selected} onSelect={props.onSelect}>
           <Contents id={key} world={props.world} />
@@ -110,7 +111,10 @@ export default function WorldScene(props: SceneProps) {
 
 const GEO = {
   box: new THREE.BoxGeometry(1, 1, 1),
-  roof: new THREE.ConeGeometry(0.3, 0.28, 4).rotateY(Math.PI / 4),
+  // A gable roof: a three-sided cylinder (triangular prism) tipped over so its
+  // ridge runs front-to-back and the triangle end faces the camera, peak up.
+  houseRoof: new THREE.CylinderGeometry(0.34, 0.34, 0.62, 3).rotateX(-Math.PI / 2).scale(1, 0.62, 1),
+  door: new THREE.BoxGeometry(0.15, 0.24, 0.02),
   coin: new THREE.CylinderGeometry(0.3, 0.3, 0.08, 16),
   ticket: new THREE.BoxGeometry(0.26, 0.1, 0.18),
   miniBody: new THREE.CylinderGeometry(0.06, 0.075, 0.16, 10),
@@ -136,72 +140,37 @@ function Redraw({ deps }: { deps: unknown }) {
   return null;
 }
 
-// ── The workshop ──────────────────────────────────────────────────────────
+// ── The platform ──────────────────────────────────────────────────────────
 
-const FLOOR = { w: 20, d: 19 };
-const WALL_H = 3.4;
+/**
+ * Stations are drawn this much larger than their props were modelled, so the
+ * crew and their numbers read at a glance (the floor is sized to match).
+ */
+const STATION_SCALE = 1.25;
+
+/** The floating floor: just wide enough for the ring of stations plus a margin. */
+const FLOOR = { w: 17.5, d: 17, thick: 0.7 };
 
 const ROOM_GEO = {
-  floor: new THREE.BoxGeometry(FLOOR.w, 0.4, FLOOR.d),
-  backWall: new THREE.BoxGeometry(FLOOR.w, WALL_H, 0.3),
-  sideWall: new THREE.BoxGeometry(0.3, WALL_H, FLOOR.d),
-  backTrim: new THREE.BoxGeometry(FLOOR.w, 0.9, 0.06),
-  sideTrim: new THREE.BoxGeometry(0.06, 0.9, FLOOR.d),
-  shelf: new THREE.BoxGeometry(3.2, 0.12, 0.5),
-  frame: new THREE.BoxGeometry(0.08, 1.2, 1.5),
-  picture: new THREE.BoxGeometry(0.02, 0.9, 1.2),
-  window: new THREE.BoxGeometry(2.2, 1.6, 0.06),
-  pane: new THREE.BoxGeometry(1.9, 1.3, 0.02),
-  lampShade: new THREE.ConeGeometry(0.55, 0.45, 16, 1, true),
-  cord: new THREE.CylinderGeometry(0.015, 0.015, 1.4, 6),
+  boards: new THREE.BoxGeometry(FLOOR.w, 0.12, FLOOR.d),
+  base: new THREE.BoxGeometry(FLOOR.w, FLOOR.thick, FLOOR.d),
+  shadow: new THREE.CircleGeometry(1, 48),
 };
 
-function Room() {
-  const z0 = -FLOOR.d / 2;
-  const x0 = -FLOOR.w / 2;
+/**
+ * The world sits on a thick wooden platform floating over the parchment, like
+ * a diorama — no walls, so nothing stands between the camera and the stations.
+ */
+function Platform() {
   return (
     <group>
-      {/* Floorboards, like the banner's. */}
-      <Toon geometry={ROOM_GEO.floor} color="#ffffff" map={floorboards ?? undefined} position={[0, -0.2, 0]} />
-      {/* Walls: only the back and left, a cutaway the camera can see over. */}
-      <Toon geometry={ROOM_GEO.backWall} color="#efd2b3" position={[0, WALL_H / 2, z0 - 0.15]} />
-      <Toon geometry={ROOM_GEO.sideWall} color="#e9c9a8" position={[x0 - 0.15, WALL_H / 2, 0]} />
-      {/* Wooden wainscot along the bottom of the walls. */}
-      <Toon geometry={ROOM_GEO.backTrim} color={PALETTE.woodMid} position={[0, 0.45, z0 + 0.03]} />
-      <Toon geometry={ROOM_GEO.sideTrim} color={PALETTE.woodMid} position={[x0 + 0.03, 0.45, 0]} />
-
-      {/* Window with a soft glow, on the back wall. */}
-      <Toon geometry={ROOM_GEO.window} color={PALETTE.woodMid} position={[2.5, 2.1, z0 + 0.05]} />
-      <mesh geometry={ROOM_GEO.pane} position={[2.5, 2.1, z0 + 0.1]}>
-        <meshBasicMaterial color="#fff6dc" />
+      {/* Floorboards on top, a darker wooden slab under them. */}
+      <Toon geometry={ROOM_GEO.boards} color="#ffffff" map={floorboards ?? undefined} position={[0, -0.06, 0]} />
+      <Toon geometry={ROOM_GEO.base} color={PALETTE.woodDark} position={[0, -0.12 - FLOOR.thick / 2, 0]} />
+      {/* A soft shadow on the parchment below. */}
+      <mesh geometry={ROOM_GEO.shadow} rotation-x={-Math.PI / 2} position={[0, -FLOOR.thick - 1.1, 0.8]} scale={[FLOOR.w * 0.5, FLOOR.d * 0.5, 1]}>
+        <meshBasicMaterial color={PALETTE.woodDark} transparent opacity={0.12} depthWrite={false} />
       </mesh>
-
-      {/* Shelves of pottery, like the banner's back wall. */}
-      {[
-        [-5.5, 2.3],
-        [7.2, 2.0],
-      ].map(([x, y], i) => (
-        <group key={i} position={[x, y, z0 + 0.3]}>
-          <Toon geometry={ROOM_GEO.shelf} color={PALETTE.woodMid} />
-          <Toon geometry={GEO.pot} color={PALETTE.terracotta} position={[-0.9, 0.26, 0]} />
-          <Toon geometry={GEO.vase} color={PALETTE.sage} position={[0, 0.25, 0]} scale={[0.9, 1.1, 0.9]} />
-          <Toon geometry={GEO.pot} color={PALETTE.woodLight} position={[0.95, 0.26, 0]} scale={[0.8, 0.8, 0.8]} />
-        </group>
-      ))}
-
-      {/* A framed picture on the side wall. */}
-      <group position={[x0 + 0.08, 2.1, -3.5]}>
-        <Toon geometry={ROOM_GEO.frame} color={PALETTE.woodDark} />
-        <mesh geometry={ROOM_GEO.picture} position={[0.05, 0, 0]}>
-          <meshBasicMaterial color="#cfe0b0" />
-        </mesh>
-      </group>
-
-      {/* Hanging lamp near the back of the room. */}
-      <group position={[-1.2, WALL_H + 0.9, z0 + 2.4]}>
-        <Toon geometry={ROOM_GEO.cord} color={PALETTE.ink} line={0} position={[0, 0.7, 0]} />
-        <Toon geometry={ROOM_GEO.lampShade} color={PALETTE.cream} />
-      </group>
     </group>
   );
 }
@@ -267,9 +236,11 @@ function Place({
         onSelect(id);
       }}
     >
-      {/* Each station stands on its own round rug. */}
-      <Toon geometry={GEO.rug} color={rugColor} position-y={0.03} />
-      <group position-y={0.06}>{children}</group>
+      <group scale={STATION_SCALE}>
+        {/* Each station stands on its own round rug. */}
+        <Toon geometry={GEO.rug} color={rugColor} position-y={0.03} />
+        <group position-y={0.06}>{children}</group>
+      </group>
     </group>
   );
 }
@@ -454,28 +425,34 @@ function BookingPlaza({ live, cancelled }: WorldModel['bookings']) {
 
 function HostVillage({ listing, approvedIdle, pending }: WorldModel['hosts']) {
   const total = listing + approvedIdle + pending;
+  // Up to a dozen good-sized houses; with more hosts each house stands for a
+  // share of them, keeping the listing / idle / pending proportions.
   const shown = Math.min(CAPS.houses, total);
   const scale = total ? shown / total : 0;
   const nListing = Math.round(listing * scale);
   const nIdle = Math.round(approvedIdle * scale);
   const kind = (i: number) => (i < nListing ? 0 : i < nListing + nIdle ? 1 : 2);
   // The houses sit on a low wooden table, in a cluster sized to the count.
-  const perRow = Math.max(1, Math.min(6, Math.ceil(Math.sqrt(shown * 1.3))));
+  const perRow = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(shown))));
   const rows = Math.max(1, Math.ceil(shown / perRow));
-  const TOP = 0.42;
-  const tableW = Math.max(1.2, perRow * 0.48 + 0.3);
-  const tableD = Math.max(1, rows * 0.5 + 0.3);
+  const GAP = 0.78;
+  const TOP = 0.36;
+  const tableW = perRow * GAP + 0.3;
+  const tableD = rows * GAP + 0.3;
+  const CX = -0.2;
+  const CZ = -0.15;
   const table = useMemo(() => new THREE.BoxGeometry(tableW, 0.12, tableD), [tableW, tableD]);
-  const leg = useMemo(() => new THREE.BoxGeometry(0.1, TOP - 0.12, 0.1), []);
+  const leg = useMemo(() => new THREE.BoxGeometry(0.12, TOP - 0.12, 0.12), []);
   const spot = (i: number, o: THREE.Object3D) => {
     const row = Math.floor(i / perRow);
     const col = i % perRow;
     const inRow = row === rows - 1 ? shown - row * perRow : perRow;
-    o.position.set((col - (inRow - 1) / 2) * 0.48 - 0.25, TOP, (row - (rows - 1) / 2) * 0.5 - 0.2);
+    o.position.set(CX + (col - (inRow - 1) / 2) * GAP, TOP, CZ + (row - (rows - 1) / 2) * GAP);
   };
+  const deps = [shown, nListing, nIdle, perRow];
   return (
     <>
-      <group position={[-0.25, 0, -0.2]}>
+      <group position={[CX, 0, CZ]}>
         <Toon geometry={table} color={PALETTE.woodMid} position-y={TOP - 0.06} />
         {[-1, 1].flatMap((sx) =>
           [-1, 1].map((sz) => (
@@ -483,30 +460,45 @@ function HostVillage({ listing, approvedIdle, pending }: WorldModel['hosts']) {
               key={`${sx}${sz}`}
               geometry={leg}
               color={PALETTE.woodDark}
-              position={[sx * (tableW / 2 - 0.1), (TOP - 0.12) / 2, sz * (tableD / 2 - 0.1)]}
+              position={[sx * (tableW / 2 - 0.12), (TOP - 0.12) / 2, sz * (tableD / 2 - 0.12)]}
             />
           )),
         )}
       </group>
+      {/* Walls */}
       <Instances
         count={shown}
         geometry={GEO.box}
-        deps={[shown, nListing, nIdle, perRow]}
+        deps={deps}
         place={(i, o) => {
           spot(i, o);
-          o.position.y += 0.15;
-          o.scale.set(0.32, 0.28, 0.32);
+          o.position.y += 0.24;
+          o.scale.set(0.56, 0.46, 0.56);
           return [PALETTE.white, '#f1e8f8', '#e2dbd2'][kind(i)];
         }}
       />
+      {/* Gable roofs: terracotta when listing, lilac when idle, grey when pending */}
       <Instances
         count={shown}
-        geometry={GEO.roof}
-        deps={[shown, nListing, nIdle, perRow]}
+        geometry={GEO.houseRoof}
+        deps={deps}
         place={(i, o) => {
           spot(i, o);
-          o.position.y += 0.43;
+          o.position.y += 0.58;
           return [PALETTE.terracotta, PALETTE.lilac, PALETTE.stone][kind(i)];
+        }}
+      />
+      {/* Doors */}
+      <Instances
+        count={shown}
+        geometry={GEO.door}
+        color={PALETTE.woodMid}
+        outline={false}
+        deps={deps}
+        place={(i, o) => {
+          spot(i, o);
+          o.position.y += 0.13;
+          o.position.z += 0.29;
         }}
       />
     </>
@@ -598,11 +590,11 @@ function ClockTower({ upcoming }: { upcoming: number }) {
 /** Height above the floor where each station's label floats. */
 const LABEL_Y: Record<DistrictKey, number> = {
   // Above the crew's heads (they stand ~1.6 tall at their size-up).
-  bookings: 2.8,
+  bookings: 2.2,
   downloads: 3.9,
-  revenue: 2.4,
-  hosts: 2.4,
-  customers: 2.8,
+  revenue: 2.3,
+  hosts: 2.1,
+  customers: 2.1,
   calendar: 3.2,
 };
 
@@ -621,19 +613,24 @@ function CameraRig({ selected, still, panelOnRight }: { selected: DistrictKey | 
     const portrait = aspect < 1.2;
     if (!selected) {
       if (portrait) {
-        const d = 10.6 / (tanHalfFov * aspect);
+        const d = (FLOOR.w / 2 + 0.6) / (tanHalfFov * aspect);
         goal.pos.set(0, d * 0.9, d * 0.44);
       } else {
-        const back = Math.max(1, 1.55 / aspect);
-        goal.pos.set(0, 12.5 * back, 14.5 * back);
+        // Fit the floor to the frame: close enough that it fills the view,
+        // far enough that neither its width nor its depth is cut off.
+        const elev = THREE.MathUtils.degToRad(42);
+        const fitWidth = (FLOOR.w / 2 + 0.4) / (tanHalfFov * aspect);
+        const fitDepth = ((FLOOR.d * Math.sin(elev)) / 2 + 2.6) / tanHalfFov;
+        const d = Math.max(fitWidth, fitDepth);
+        goal.pos.set(0, d * Math.sin(elev), d * Math.cos(elev));
       }
-      goal.look.set(0, 0, -0.5);
+      goal.look.set(0, 0.5, 0.9);
     } else {
       const [x, z] = DISTRICTS[selected].at;
       // Stations are seen from the open front of the room, leaning a little
       // towards where the station sits.
       goal.look.set(x, 0.9, z);
-      const k = portrait ? 1.6 : 1;
+      const k = (portrait ? 1.6 : 1) * STATION_SCALE;
       goal.pos.set(x * 1.25, 5.6 * k, z + 6.2 * k);
       if (panelOnRight) {
         // Aim right of the station so it sits left of the side panel.
@@ -666,7 +663,7 @@ function Labels({ labels }: { labels: MutableRefObject<Partial<Record<DistrictKe
       const el = labels.current[key];
       if (!el) continue;
       const [x, z] = DISTRICTS[key].at;
-      v.set(x, LABEL_Y[key], z).project(camera);
+      v.set(x, LABEL_Y[key] * STATION_SCALE, z).project(camera);
       const hidden = v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1;
       el.style.opacity = hidden ? '0' : '1';
       el.style.transform = `translate(-50%, -100%) translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px)`;
