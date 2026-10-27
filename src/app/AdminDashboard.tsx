@@ -17,6 +17,9 @@ import {
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
+import { ActivityHero } from './dashboard/ActivityHero';
+import type { ActivityDay } from './dashboard/activity';
+import { demoData, demoSession } from './dashboard/demoData';
 
 /**
  * Admin dashboard at /admin.
@@ -47,6 +50,14 @@ type Owner = { user_id: string; display_name: string | null; is_approved: boolea
 type Customer = { user_id: string; created_at: string };
 type Schedule = { id: string; service_id: string | null; start_time: string; status: string | null };
 type Category = { id: string; name: string | null };
+/** One row of public.app_store_daily_stats (migration 0090), filled daily by sync-store-stats. */
+export type StoreStat = {
+  day: string;
+  store: 'app_store' | 'google_play';
+  app: 'customer' | 'host';
+  downloads: number;
+  fetched_at: string;
+};
 
 type Data = {
   bookings: Booking[];
@@ -55,6 +66,8 @@ type Data = {
   customers: Customer[];
   schedules: Schedule[];
   categories: Category[];
+  /** null: store stats aren't set up yet (no table, or nothing synced). */
+  storeStats: StoreStat[] | null;
 };
 
 /** yyyy-mm-dd in local time — never toISOString(), which shifts across midnight. */
@@ -87,16 +100,25 @@ const shortDate = (key: string) =>
 
 const PIE_COLORS = ['#8A2BE2', '#F4C300', '#1D9E75', '#D85A30', '#378ADD', '#D4537E'];
 
+/** Days shown in the 3D header: the most recent ones in the selected range. */
+const ACTIVITY_DAYS = 30;
+
+// Local development only: /admin?demo renders the dashboard from sample data,
+// so the layout can be checked without an admin login. `import.meta.env.DEV`
+// is false in production builds, so this is compiled out of the live site.
+const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
+
 export default function AdminDashboard() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [checking, setChecking] = useState(true);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [data, setData] = useState<Data | null>(null);
+  const [session, setSession] = useState<Session | null>(DEMO ? demoSession : null);
+  const [checking, setChecking] = useState(!DEMO);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(DEMO ? true : null);
+  const [data, setData] = useState<Data | null>(DEMO ? demoData() : null);
   const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState(() => daysAgoKey(90));
   const [to, setTo] = useState(() => todayKey());
 
   useEffect(() => {
+    if (DEMO) return;
     supabase.auth.getSession().then(({ data: d }) => {
       setSession(d.session);
       setChecking(false);
@@ -107,6 +129,7 @@ export default function AdminDashboard() {
 
   // Admin status comes from the owners row, the same flag the apps use.
   useEffect(() => {
+    if (DEMO) return;
     if (!session) {
       setIsAdmin(null);
       return;
@@ -138,7 +161,16 @@ export default function AdminDashboard() {
       ]);
       const firstErr = [b, s, o, c, sc, cat].find((r) => r.error)?.error;
       if (firstErr) throw firstErr;
+      // Read separately and allowed to fail: until migration 0090 and the store
+      // keys are in place there is nothing to show, and that must not take the
+      // rest of the dashboard down with it.
+      const st = await supabase
+        .from('app_store_daily_stats')
+        .select('day,store,app,downloads,fetched_at')
+        .order('day', { ascending: true })
+        .limit(CAP);
       setData({
+        storeStats: st.error || !st.data?.length ? null : (st.data as StoreStat[]),
         bookings: (b.data ?? []) as Booking[],
         services: (s.data ?? []) as Service[],
         owners: (o.data ?? []) as Owner[],
@@ -152,7 +184,7 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (isAdmin) void load();
+    if (isAdmin && !DEMO) void load();
   }, [isAdmin, load]);
 
   const metrics = useMemo(() => {
@@ -231,6 +263,40 @@ export default function AdminDashboard() {
     }
     const categoryMix = [...byCat.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
+    // App downloads in range, from the daily store sync. Store days are UTC
+    // dates already, so they're compared as strings, not shifted to local time.
+    const storeRows = (data.storeStats ?? []).filter((r) => r.day >= from && r.day <= to);
+    const sumDownloads = (pick: (r: StoreStat) => boolean) =>
+      storeRows.filter(pick).reduce((t, r) => t + r.downloads, 0);
+    const downloadWeeks = new Map<string, { week: string; appStore: number; googlePlay: number }>();
+    for (const r of storeRows) {
+      const k = weekKey(`${r.day}T00:00:00`);
+      const row = downloadWeeks.get(k) ?? { week: k, appStore: 0, googlePlay: 0 };
+      if (r.store === 'app_store') row.appStore += r.downloads;
+      else row.googlePlay += r.downloads;
+      downloadWeeks.set(k, row);
+    }
+    const lastSynced = (data.storeStats ?? []).reduce<string | null>(
+      (latest, r) => (!latest || r.fetched_at > latest ? r.fetched_at : latest),
+      null,
+    );
+
+    // The 3D header: one entry per day for the last ACTIVITY_DAYS of the range.
+    const activity: ActivityDay[] = [];
+    const end = new Date(`${to}T00:00:00`);
+    const start = new Date(`${from}T00:00:00`);
+    for (let i = ACTIVITY_DAYS - 1; i >= 0; i--) {
+      const d = new Date(end);
+      d.setDate(end.getDate() - i);
+      if (d < start) continue;
+      const key = dayKey(d);
+      activity.push({
+        day: key,
+        downloads: storeRows.filter((r) => r.day === key).reduce((t, r) => t + r.downloads, 0),
+        bookings: bookings.filter((b) => dayKey(new Date(b.created_at)) === key).length,
+      });
+    }
+
     const now = Date.now();
     const upcoming = data.schedules.filter(
       (s) => s.status === 'scheduled' && new Date(s.start_time).getTime() > now,
@@ -257,6 +323,16 @@ export default function AdminDashboard() {
       bookersCount: bookers.length,
       repeat,
       categoryMix,
+      downloads: {
+        connected: data.storeStats !== null,
+        total: sumDownloads(() => true),
+        appStore: sumDownloads((r) => r.store === 'app_store'),
+        googlePlay: sumDownloads((r) => r.store === 'google_play'),
+        host: sumDownloads((r) => r.app === 'host'),
+        weekly: [...downloadWeeks.values()].sort((a, b) => a.week.localeCompare(b.week)),
+        lastSynced,
+      },
+      activity,
     };
   }, [data, from, to]);
 
@@ -334,6 +410,49 @@ export default function AdminDashboard() {
         <p className="text-gray-500">Loading data…</p>
       ) : (
         <div className="space-y-8">
+          <ActivityHero
+            days={metrics.activity}
+            rangeLabel={`Last ${metrics.activity.length} days to ${shortDate(to)}`}
+          />
+
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">App downloads</h2>
+            {metrics.downloads.connected ? (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <Stat label="Downloads" value={metrics.downloads.total.toLocaleString('en-SG')} hint="first-time, both stores" />
+                  <Stat label="App Store" value={metrics.downloads.appStore.toLocaleString('en-SG')} hint="iPhone and iPad" />
+                  <Stat label="Google Play" value={metrics.downloads.googlePlay.toLocaleString('en-SG')} hint="Android" />
+                  <Stat label="Host app" value={metrics.downloads.host.toLocaleString('en-SG')} hint="of the total" />
+                </div>
+                <Panel title="Downloads by week">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={metrics.downloads.weekly}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                      <XAxis dataKey="week" tickFormatter={shortDate} fontSize={12} />
+                      <YAxis allowDecimals={false} fontSize={12} />
+                      <Tooltip labelFormatter={(l) => shortDate(String(l))} />
+                      <Legend />
+                      <Bar dataKey="appStore" name="App Store" stackId="d" fill="#8A2BE2" />
+                      <Bar dataKey="googlePlay" name="Google Play" stackId="d" fill="#1D9E75" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Panel>
+                <p className="text-xs text-gray-400 mt-2">
+                  From Apple and Google's daily reports, which arrive about a day late.
+                  {metrics.downloads.lastSynced
+                    ? ` Last synced ${new Date(metrics.downloads.lastSynced).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' })}.`
+                    : ''}
+                </p>
+              </>
+            ) : (
+              <div className="bg-white rounded-xl border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+                Store downloads aren't connected yet. Once the App Store Connect and Google Play keys are added, they
+                appear here the next morning.
+              </div>
+            )}
+          </section>
+
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-3">Revenue</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -634,7 +753,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function Stat({ label, value, hint, negative }: { label: string; value: string; hint?: string; negative?: boolean }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4">
+    <div className="bg-white rounded-xl border border-gray-100 p-4 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0">
       <p className="text-xs text-gray-500">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${negative ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
       {hint ? <p className="text-xs text-gray-400 mt-1">{hint}</p> : null}
