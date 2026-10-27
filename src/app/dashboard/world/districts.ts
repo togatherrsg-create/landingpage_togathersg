@@ -19,12 +19,17 @@ export interface WorldModel {
   upcoming: number;
 }
 
+export type Layout = 'wide' | 'tall';
+
 export interface District {
   label: string;
   /** The place's colour, from the home banner's palette (muted, warm). */
   color: string;
-  /** Position on the island (x, z). The plaza is the centre. */
-  at: [number, number];
+  /**
+   * Position on the floor (x, z): `wide` is two rows of three for landscape
+   * screens, `tall` three rows of two for portrait ones. The plaza is central.
+   */
+  at: Record<Layout, [number, number]>;
   /** Headline under the label, e.g. "1,204 downloads". */
   headline: (w: WorldModel) => string;
 }
@@ -32,48 +37,45 @@ export interface District {
 const n = (v: number) => v.toLocaleString('en-SG');
 const money = (cents: number) => `S$${Math.round(cents / 100).toLocaleString('en-SG')}`;
 
-// Five places on a ring around the central plaza, 72° apart.
-const RING = 5.4;
-const around = (deg: number): [number, number] => {
-  const r = (deg * Math.PI) / 180;
-  return [Math.cos(r) * RING, -Math.sin(r) * RING];
-};
+// Places sit on a grid, a rug's width apart, so together they fill the frame.
+const STEP = 5.6;
+const HALF = STEP / 2;
 
 export const DISTRICTS: Record<DistrictKey, District> = {
   bookings: {
     label: 'Booking Plaza',
     color: '#F2B91C',
-    at: [0, 0],
+    at: { wide: [0, HALF], tall: [HALF, 0] },
     headline: (w) => `${n(w.bookings.live)} bookings`,
   },
   downloads: {
     label: 'Download Port',
     color: '#7E4FC0',
-    at: around(90),
+    at: { wide: [0, -HALF], tall: [-HALF, -STEP] },
     headline: (w) => (w.downloads.connected ? `${n(w.downloads.appStore + w.downloads.googlePlay)} downloads` : 'not connected yet'),
   },
   revenue: {
     label: 'Revenue Bank',
     color: '#C98F2E',
-    at: around(18),
+    at: { wide: [STEP, -HALF], tall: [HALF, -STEP] },
     headline: (w) => money(w.revenue.gmvCents),
   },
   hosts: {
     label: 'Host Village',
     color: '#C96F45',
-    at: around(-54),
+    at: { wide: [STEP, HALF], tall: [HALF, STEP] },
     headline: (w) => `${n(w.hosts.listing)} hosts listing`,
   },
   customers: {
     label: 'Customer Park',
     color: '#6F8F4E',
-    at: around(-126),
+    at: { wide: [-STEP, HALF], tall: [-HALF, STEP] },
     headline: (w) => `${n(w.customers.booked + w.customers.never)} customers`,
   },
   calendar: {
     label: 'Clock Tower',
     color: '#4A6286',
-    at: around(162),
+    at: { wide: [-STEP, -HALF], tall: [-HALF, 0] },
     headline: (w) => `${n(w.upcoming)} upcoming classes`,
   },
 };

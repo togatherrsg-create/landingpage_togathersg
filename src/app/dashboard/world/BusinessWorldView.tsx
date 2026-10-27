@@ -110,11 +110,12 @@ export function BusinessWorldView({
       <div
         ref={box}
         className="relative overflow-hidden rounded-2xl border-2 h-[420px] sm:h-[min(72vh,620px)]"
-        // Parchment, like the banner's warm wash.
-        style={{ background: 'radial-gradient(ellipse at 50% 35%, #fbefdc 0%, #f0dcc0 60%, #e6c9a5 100%)', borderColor: '#e2c9a6' }}
+        // The floor's wood tone, so there's no flash of another colour while
+        // the town loads (the floor itself then fills the whole box).
+        style={{ background: '#dcb27d', borderColor: '#c99a63' }}
       >
         <SceneBoundary onError={onUnavailable}>
-          <Suspense fallback={<p className="absolute inset-0 grid place-items-center text-sm text-purple-700/60">Building the town…</p>}>
+          <Suspense fallback={<p className="absolute inset-0 grid place-items-center text-sm text-[#6b4a33]">Building the town…</p>}>
             <WorldScene
               world={world}
               selected={selected}

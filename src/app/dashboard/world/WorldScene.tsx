@@ -2,15 +2,16 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import * as THREE from 'three';
 
-import { DISTRICT_ORDER, DISTRICTS, type DistrictKey, type WorldModel } from './districts';
+import { DISTRICT_ORDER, DISTRICTS, type DistrictKey, type Layout, type WorldModel } from './districts';
 import { Chibi, floorboards, hullScale, inkMaterial, PALETTE, sizeOf, toon, Toon, type Hat } from './toon';
 
 /**
- * ToGatherSG as a floating wooden diorama, drawn like the home banner: warm
- * floorboards on a thick platform over parchment, flat cel shading with
+ * ToGatherSG as a wooden workshop floor, drawn like the home banner: warm
+ * floorboards running off every edge of the frame, flat cel shading with
  * dark-brown ink outlines, and the banner's chibi crew — one at each station,
- * hopping while the scene is on screen. No walls, so the stations fill the
- * frame.
+ * hopping while the scene is on screen. The stations sit on a grid (two rows
+ * of three, or three of two on a portrait screen) and the camera frames them
+ * tightly, so the town fills the view with no empty background.
  *
  * Every station is a dashboard section, built from that section's numbers for
  * the selected range:
@@ -82,7 +83,7 @@ export default function WorldScene(props: SceneProps) {
       dpr={[1, 1.5]}
       // No filmic tone mapping: it greys the banner's warm creams.
       flat
-      camera={{ position: [0, 12.5, 14.5], fov: 40 }}
+      camera={{ position: [0, 12.5, 14.5], fov: 40, far: 200 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
       onCreated={({ gl }) => {
         gl.domElement.addEventListener('webglcontextlost', () => !closing.current && props.onLost(), { once: true });
@@ -134,13 +135,18 @@ function seeded(seed: number) {
 }
 
 /** Ask for a frame when the numbers change, so the on-demand loop redraws. */
+/** Two rows of three on a landscape view, three rows of two on a portrait one. */
+function useLayout(): Layout {
+  return useThree((s) => (s.size.width / Math.max(1, s.size.height) < 1.2 ? 'tall' : 'wide'));
+}
+
 function Redraw({ deps }: { deps: unknown }) {
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => invalidate(), [deps, invalidate]);
   return null;
 }
 
-// ── The platform ──────────────────────────────────────────────────────────
+// ── The floor ─────────────────────────────────────────────────────────────
 
 /**
  * Stations are drawn this much larger than their props were modelled, so the
@@ -148,31 +154,25 @@ function Redraw({ deps }: { deps: unknown }) {
  */
 const STATION_SCALE = 1.25;
 
-/** The floating floor: just wide enough for the ring of stations plus a margin. */
-const FLOOR = { w: 17.5, d: 17, thick: 0.7 };
-
-const ROOM_GEO = {
-  boards: new THREE.BoxGeometry(FLOOR.w, 0.12, FLOOR.d),
-  base: new THREE.BoxGeometry(FLOOR.w, FLOOR.thick, FLOOR.d),
-  shadow: new THREE.CircleGeometry(1, 48),
-};
-
 /**
- * The world sits on a thick wooden platform floating over the parchment, like
- * a diorama — no walls, so nothing stands between the camera and the stations.
+ * The floor runs far past every edge of the view — from the overview and from
+ * every station close-up — so no background ever shows round it.
  */
+const FLOOR = 90;
+
+/** Floorboards at the same plank size the 17.5-wide platform had (3 repeats). */
+const boards = (() => {
+  if (!floorboards) return undefined;
+  const t = floorboards.clone();
+  t.repeat.set((3 * FLOOR) / 17.5, (3 * FLOOR) / 17.5);
+  t.needsUpdate = true;
+  return t;
+})();
+
+const FLOOR_GEO = new THREE.PlaneGeometry(FLOOR, FLOOR).rotateX(-Math.PI / 2);
+
 function Platform() {
-  return (
-    <group>
-      {/* Floorboards on top, a darker wooden slab under them. */}
-      <Toon geometry={ROOM_GEO.boards} color="#ffffff" map={floorboards ?? undefined} position={[0, -0.06, 0]} />
-      <Toon geometry={ROOM_GEO.base} color={PALETTE.woodDark} position={[0, -0.12 - FLOOR.thick / 2, 0]} />
-      {/* A soft shadow on the parchment below. */}
-      <mesh geometry={ROOM_GEO.shadow} rotation-x={-Math.PI / 2} position={[0, -FLOOR.thick - 1.1, 0.8]} scale={[FLOOR.w * 0.5, FLOOR.d * 0.5, 1]}>
-        <meshBasicMaterial color={PALETTE.woodDark} transparent opacity={0.12} depthWrite={false} />
-      </mesh>
-    </group>
-  );
+  return <Toon geometry={FLOOR_GEO} color="#ffffff" map={boards} line={0} />;
 }
 
 // ── A clickable station ───────────────────────────────────────────────────
@@ -192,7 +192,8 @@ function Place({
   const hovered = useRef(false);
   const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
-  const { at, color } = DISTRICTS[id];
+  const { color } = DISTRICTS[id];
+  const at = DISTRICTS[id].at[useLayout()];
 
   // Lift a little on hover or when selected; requests frames until settled.
   useFrame((_, delta) => {
@@ -602,31 +603,80 @@ function CameraRig({ selected, still, panelOnRight }: { selected: DistrictKey | 
   const camera = useThree((s) => s.camera);
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
   const invalidate = useThree((s) => s.invalidate);
+  const layout = useLayout();
   const look = useRef(new THREE.Vector3());
   const goal = useMemo(() => ({ pos: new THREE.Vector3(), look: new THREE.Vector3() }), []);
 
   // Where the camera wants to be.
   useEffect(() => {
-    const tanHalfFov = Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov / 2));
-    // Portrait screens (phones): look down from higher up, so the room fills
-    // the width instead of sitting small in a tall, empty box.
-    const portrait = aspect < 1.2;
+    const portrait = layout === 'tall';
     if (!selected) {
-      if (portrait) {
-        const d = (FLOOR.w / 2 + 0.6) / (tanHalfFov * aspect);
-        goal.pos.set(0, d * 0.9, d * 0.44);
-      } else {
-        // Fit the floor to the frame: close enough that it fills the view,
-        // far enough that neither its width nor its depth is cut off.
-        const elev = THREE.MathUtils.degToRad(42);
-        const fitWidth = (FLOOR.w / 2 + 0.4) / (tanHalfFov * aspect);
-        const fitDepth = ((FLOOR.d * Math.sin(elev)) / 2 + 2.6) / tanHalfFov;
-        const d = Math.max(fitWidth, fitDepth);
-        goal.pos.set(0, d * Math.sin(elev), d * Math.cos(elev));
+      // Fit the stations, not the floor: step back just until every rug edge
+      // and every label is inside the frame, so the grid fills the view edge
+      // to edge. Portrait screens look down more steeply, as the grid there
+      // is deeper than it is wide.
+      // A narrower landscape view (a tablet) looks down more steeply too, so
+      // the two rows grow taller and fill the height the width leaves spare.
+      const elev = THREE.MathUtils.degToRad(portrait ? 55 : THREE.MathUtils.clamp(42 + (1.8 - aspect) * 28, 42, 58));
+      const rug = 1.95 * STATION_SCALE;
+      // Rug edges and crew (who stand a little off their rugs) must fit the
+      // frame; labels must also clear the title in the top-left corner.
+      const marks: THREE.Vector3[] = [];
+      const labelMarks: THREE.Vector3[] = [];
+      for (const key of DISTRICT_ORDER) {
+        const [x, z] = DISTRICTS[key].at[layout];
+        const [cx, , cz] = CREW[key].at;
+        const crewX = x + cx * STATION_SCALE;
+        const crewZ = z + cz * STATION_SCALE;
+        marks.push(
+          new THREE.Vector3(x - rug, 0, z),
+          new THREE.Vector3(x + rug, 0, z),
+          new THREE.Vector3(x, 0, z + rug),
+          new THREE.Vector3(crewX - 1, 1.4, crewZ),
+          new THREE.Vector3(crewX + 1, 1.4, crewZ),
+        );
+        labelMarks.push(new THREE.Vector3(x, LABEL_Y[key] * STATION_SCALE + 0.5, z));
       }
-      goal.look.set(0, 0.5, 0.9);
+      const probe = (camera as THREE.PerspectiveCamera).clone();
+      probe.aspect = aspect;
+      probe.updateProjectionMatrix();
+      const v = new THREE.Vector3();
+      const inFrame = (m: THREE.Vector3, top: number) => {
+        v.copy(m).project(probe);
+        return Math.abs(v.x) <= 0.97 && v.y >= -0.95 && v.y <= top;
+      };
+      // The closest distance at which some aim point (slid along the depth)
+      // fits everything — sliding the aim instead of backing off keeps the
+      // grid big. When several aims fit (spare height on a wide-but-short
+      // view), take the one that leaves equal floor above and below.
+      let d = 6;
+      let aimZ = 0;
+      for (; d < 60; d += 0.2) {
+        let best = Infinity;
+        for (let z = -4; z <= 4; z += 0.25) {
+          probe.position.set(0, 0.9 + d * Math.sin(elev), z + d * Math.cos(elev));
+          probe.lookAt(0, 0.9, z);
+          probe.updateMatrixWorld();
+          if (!marks.every((m) => inFrame(m, 0.95)) || !labelMarks.every((m) => inFrame(m, 0.72))) continue;
+          let top = -Infinity;
+          let bottom = Infinity;
+          for (const m of [...marks, ...labelMarks]) {
+            v.copy(m).project(probe);
+            top = Math.max(top, v.y);
+            bottom = Math.min(bottom, v.y);
+          }
+          const imbalance = Math.abs(0.72 - top - (bottom + 0.95));
+          if (imbalance < best) {
+            best = imbalance;
+            aimZ = z;
+          }
+        }
+        if (best < Infinity) break;
+      }
+      goal.pos.set(0, 0.9 + d * Math.sin(elev), aimZ + d * Math.cos(elev));
+      goal.look.set(0, 0.9, aimZ);
     } else {
-      const [x, z] = DISTRICTS[selected].at;
+      const [x, z] = DISTRICTS[selected].at[layout];
       // Stations are seen from the open front of the room, leaning a little
       // towards where the station sits.
       goal.look.set(x, 0.9, z);
@@ -638,7 +688,7 @@ function CameraRig({ selected, still, panelOnRight }: { selected: DistrictKey | 
       }
     }
     invalidate();
-  }, [selected, aspect, panelOnRight, goal, invalidate, camera]);
+  }, [selected, aspect, layout, panelOnRight, goal, invalidate, camera]);
 
   useFrame((state, delta) => {
     const sway = !still && !selected ? state.pointer.x * 0.8 : 0;
@@ -658,11 +708,12 @@ function CameraRig({ selected, still, panelOnRight }: { selected: DistrictKey | 
 /** Positions the page's HTML labels over their stations each frame — no re-renders. */
 function Labels({ labels }: { labels: MutableRefObject<Partial<Record<DistrictKey, HTMLElement | null>>> }) {
   const v = useMemo(() => new THREE.Vector3(), []);
+  const layout = useLayout();
   useFrame(({ camera, size }) => {
     for (const key of DISTRICT_ORDER) {
       const el = labels.current[key];
       if (!el) continue;
-      const [x, z] = DISTRICTS[key].at;
+      const [x, z] = DISTRICTS[key].at[layout];
       v.set(x, LABEL_Y[key] * STATION_SCALE, z).project(camera);
       const hidden = v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1;
       el.style.opacity = hidden ? '0' : '1';
