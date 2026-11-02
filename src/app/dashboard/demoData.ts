@@ -33,6 +33,7 @@ export function demoData() {
     user_id: `o${i}`,
     display_name: `Host ${i + 1}`,
     is_approved: i < 11,
+    is_admin: false,
     onboarding_status: 'complete',
     created_at: iso(120 - i * 6),
   }));
@@ -43,6 +44,7 @@ export function demoData() {
     is_active: true,
     title: `Experience ${i + 1}`,
     category_id: `c${i % categories.length}`,
+    max_participants: 6 + (i % 4) * 2,
   }));
   const schedules = Array.from({ length: 80 }, (_, i) => ({
     id: `sc${i}`,
@@ -62,6 +64,7 @@ export function demoData() {
       discount_amount: r() < 0.15 ? 500 : 0,
       platform_fee_cents: Math.round(total * 0.125),
       cancellation_reason: cancelled ? (r() < 0.5 ? 'min_pax_not_reached' : 'customer_cancel_refund') : null,
+      cancelled_at: null,
       created_at: iso(Math.floor(Math.pow(r(), 1.4) * 90), 9 + Math.floor(r() * 12)),
       customer_id: `u${Math.floor(r() * 90)}`,
       service_id: `s${i % services.length}`,

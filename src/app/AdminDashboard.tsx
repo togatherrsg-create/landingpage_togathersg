@@ -41,14 +41,16 @@ type Booking = {
   discount_amount: number | null;
   platform_fee_cents: number | null;
   cancellation_reason: string | null;
+  /** When it was cancelled. Null on legacy rows that never stored it. */
+  cancelled_at: string | null;
   created_at: string;
   customer_id: string | null;
   service_id: string | null;
   schedule_id: string | null;
   participants_count: number | null;
 };
-type Service = { id: string; owner_id: string | null; status: string | null; is_active: boolean | null; title: string | null; category_id: string | null };
-type Owner = { user_id: string; display_name: string | null; is_approved: boolean | null; onboarding_status: string | null; created_at: string };
+type Service = { id: string; owner_id: string | null; status: string | null; is_active: boolean | null; title: string | null; category_id: string | null; max_participants: number | null };
+type Owner = { user_id: string; display_name: string | null; is_approved: boolean | null; is_admin: boolean | null; onboarding_status: string | null; created_at: string };
 type Customer = { user_id: string; created_at: string };
 type Schedule = { id: string; service_id: string | null; start_time: string; status: string | null };
 type Category = { id: string; name: string | null };
@@ -180,9 +182,9 @@ export default function AdminDashboard() {
       // truncate and understate every metric. Switch to ranged paging then.
       const CAP = 1000;
       const [b, s, o, c, sc, cat] = await Promise.all([
-        supabase.from('bookings').select('id,status,payment_status,total_amount,discount_amount,platform_fee_cents,cancellation_reason,created_at,customer_id,service_id,schedule_id,participants_count').limit(CAP),
-        supabase.from('services').select('id,owner_id,status,is_active,title,category_id').limit(CAP),
-        supabase.from('owners').select('user_id,display_name,is_approved,onboarding_status,created_at').limit(CAP),
+        supabase.from('bookings').select('id,status,payment_status,total_amount,discount_amount,platform_fee_cents,cancellation_reason,cancelled_at,created_at,customer_id,service_id,schedule_id,participants_count').limit(CAP),
+        supabase.from('services').select('id,owner_id,status,is_active,title,category_id,max_participants').limit(CAP),
+        supabase.from('owners').select('user_id,display_name,is_approved,is_admin,onboarding_status,created_at').limit(CAP),
         supabase.from('customers').select('user_id,created_at').limit(CAP),
         supabase.from('service_schedules').select('id,service_id,start_time,status').limit(CAP),
         supabase.from('categories').select('id,name').limit(CAP),
@@ -234,7 +236,11 @@ export default function AdminDashboard() {
     const take = live.reduce((t, b) => t + (b.platform_fee_cents ?? 0), 0);
     const discounts = live.reduce((t, b) => t + (b.discount_amount ?? 0), 0);
 
-    const cancelled = bookings.filter((b) => b.status === 'cancelled');
+    // By when the cancellation happened, not when the booking was made: a
+    // September booking cancelled in October belongs to October.
+    const cancelled = data.bookings.filter(
+      (b) => b.status === 'cancelled' && inRange(b.cancelled_at ?? b.created_at),
+    );
     const autoCancelled = cancelled.filter((b) => b.cancellation_reason === 'min_pax_not_reached');
     const customerCancelled = cancelled.filter((b) => (b.cancellation_reason ?? '').startsWith('customer_cancel'));
 
@@ -265,12 +271,18 @@ export default function AdminDashboard() {
 
     // Supply: who is approved, and who actually lists.
     const listingsByOwner = new Map<string, number>();
+    let capacity = 0;
     for (const s of data.services) {
       if (s.status !== 'published' || !s.is_active || !s.owner_id) continue;
       listingsByOwner.set(s.owner_id, (listingsByOwner.get(s.owner_id) ?? 0) + 1);
+      capacity += s.max_participants ?? 0;
     }
     const approvedHosts = data.owners.filter((o) => o.is_approved);
     const hostsListing = approvedHosts.filter((o) => listingsByOwner.has(o.user_id)).length;
+    // Host accounts created in the range (admins aren't hosts), and how many
+    // of them already have a live listing.
+    const newHosts = data.owners.filter((o) => !o.is_admin && inRange(o.created_at));
+    const newHostsListed = newHosts.filter((o) => listingsByOwner.has(o.user_id)).length;
 
     // Repeat customers: more than one non-cancelled paid booking, all time.
     const perCustomer = new Map<string, number>();
@@ -345,6 +357,9 @@ export default function AdminDashboard() {
       approvedHosts: approvedHosts.length,
       hostsListing,
       liveListings: [...listingsByOwner.values()].reduce((a, b) => a + b, 0),
+      capacity,
+      newHosts: newHosts.length,
+      newHostsListed,
       upcoming,
       newCustomers: newCustomerRows.length,
       totalCustomers: data.customers.length,
@@ -495,7 +510,13 @@ export default function AdminDashboard() {
                 <Stat label="Hosts" value={String(metrics.totalHosts)} />
                 <Stat label="Approved" value={String(metrics.approvedHosts)} />
                 <Stat label="Actually listing" value={String(metrics.hostsListing)} hint={`${metrics.approvedHosts - metrics.hostsListing} approved but no listing`} />
-                <Stat label="Upcoming classes" value={String(metrics.upcoming)} hint={`${metrics.liveListings} live listings`} />
+                <Stat label="Upcoming classes" value={String(metrics.upcoming)} hint="scheduled from now" />
+              </div>
+              <div className="grid grid-cols-2 @3xl:grid-cols-4 gap-3 mt-3">
+                <Stat label="New hosts" value={String(metrics.newHosts)} hint="joined in this range" />
+                <Stat label="New hosts listing" value={String(metrics.newHostsListed)} hint={metrics.newHosts ? `of ${metrics.newHosts} new hosts` : undefined} />
+                <Stat label="Live experiences" value={String(metrics.liveListings)} hint="bookable now" />
+                <Stat label="Class capacity" value={metrics.capacity.toLocaleString('en-SG')} hint="guests across live experiences" />
               </div>
               <Panel title="Live listings by category">
                 <ResponsiveContainer width="100%" height={260}>
