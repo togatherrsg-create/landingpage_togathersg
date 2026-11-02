@@ -1,4 +1,5 @@
 import image_ToGatherSG_avail_on_ios__1_ from '@/imports/Live_on_app_store.png'
+import image_live_on_play_store from '@/imports/Live_on_play_store.png'
 import image_Countdown_to_ios_launch from '@/imports/Countdown_to_ios_launch.jpg'
 import { Button } from "./ui/button";
 import { siteContent } from "../content";
@@ -57,13 +58,18 @@ export function DownloadNowSection() {
               </div>
             </div>
 
-            {/* Right - App Screenshot */}
+            {/* Right - Launch posters, one per store */}
             <div className="relative">
-              <div className="relative z-10">
+              <div className="relative z-10 grid grid-cols-2 gap-4 max-w-xl mx-auto">
                 <img
                   src={image_ToGatherSG_avail_on_ios__1_}
-                  alt="ToGatherSG App Screenshot"
-                  className="w-full max-w-xs h-auto rounded-lg mx-[10px] my-[0px]"
+                  alt="ToGatherSG now live on the App Store"
+                  className="w-full h-auto rounded-lg shadow-lg"
+                />
+                <img
+                  src={image_live_on_play_store}
+                  alt="ToGatherSG now live on the Play Store"
+                  className="w-full h-auto rounded-lg shadow-lg"
                 />
               </div>
               {/* Decorative elements */}
